@@ -1,5 +1,10 @@
 import {useMemo, useRef, useState} from 'react';
-import {autoUpdate, useFloating, UseFloatingOptions} from '@floating-ui/react';
+import {
+  autoUpdate,
+  offset as offsetMiddleware,
+  useFloating,
+  UseFloatingOptions,
+} from '@floating-ui/react';
 import {detectOverflow, Modifier} from '@popperjs/core';
 import type {ArrowModifier} from '@popperjs/core/lib/modifiers/arrow';
 import type {FlipModifier} from '@popperjs/core/lib/modifiers/flip';
@@ -147,65 +152,69 @@ function useOverlay({
 
   const modifiers = useMemo(
     () => [
-      {
-        name: 'hide',
-        enabled: false,
-      },
-      {
-        name: 'computeStyles',
-        options: {
-          // Using the `transform` attribute causes our borders to get blurry
-          // in chrome. See [0]. This just causes it to use `top` / `left`
-          // positions, which should be fine.
-          //
-          // [0]: https://stackoverflow.com/questions/29543142/css3-transformation-blurry-borders
-          gpuAcceleration: false,
-        },
-      },
-      {
-        name: 'arrow',
-        options: {
-          element: arrowElement,
-          // Set padding to avoid the arrow reaching the side of the tooltip
-          // and overflowing out of the rounded border
-          padding: 4,
-          ...arrowOptions,
-        },
-      },
-      {
-        name: 'flip',
-        options: {
-          // Only flip on main axis
-          flipVariations: false,
-          ...flipOptions,
-        },
-      },
-      {
-        name: 'offset',
-        options: {
-          offset: Array.isArray(offset) ? offset : [0, offset],
-        },
-      },
-      {
-        name: 'preventOverflow',
-        enabled: true,
-        options: {
-          padding: 16,
-          ...preventOverflowOptions,
-        },
-      },
-      {
-        ...maxSize,
-        enabled: openState.isOpen,
-        options: {
-          padding: 16,
-          ...preventOverflowOptions,
-        },
-      },
-      {
-        ...applyMaxSize,
-        enabled: openState.isOpen,
-      },
+      // {
+      //   name: 'hide',
+      //   enabled: false,
+      // },
+      // {
+      //   name: 'computeStyles',
+      //   options: {
+      //     // Using the `transform` attribute causes our borders to get blurry
+      //     // in chrome. See [0]. This just causes it to use `top` / `left`
+      //     // positions, which should be fine.
+      //     //
+      //     // [0]: https://stackoverflow.com/questions/29543142/css3-transformation-blurry-borders
+      //     gpuAcceleration: false,
+      //   },
+      // },
+      // {
+      //   name: 'arrow',
+      //   options: {
+      //     element: arrowElement,
+      //     // Set padding to avoid the arrow reaching the side of the tooltip
+      //     // and overflowing out of the rounded border
+      //     padding: 4,
+      //     ...arrowOptions,
+      //   },
+      // },
+      // {
+      //   name: 'flip',
+      //   options: {
+      //     // Only flip on main axis
+      //     flipVariations: false,
+      //     ...flipOptions,
+      //   },
+      // },
+      offsetMiddleware({
+        crossAxis: 0,
+        mainAxis: Array.isArray(offset) ? offset[0] : offset,
+      }),
+      // {
+      //   name: 'offset',
+      //   options: {
+      //     offset: Array.isArray(offset) ? offset : [0, offset],
+      //   },
+      // },
+      // {
+      //   name: 'preventOverflow',
+      //   enabled: true,
+      //   options: {
+      //     padding: 16,
+      //     ...preventOverflowOptions,
+      //   },
+      // },
+      // {
+      //   ...maxSize,
+      //   enabled: openState.isOpen,
+      //   options: {
+      //     padding: 16,
+      //     ...preventOverflowOptions,
+      //   },
+      // },
+      // {
+      //   ...applyMaxSize,
+      //   enabled: openState.isOpen,
+      // },
     ],
     [arrowElement, offset, arrowOptions, flipOptions, preventOverflowOptions, openState]
   );
@@ -215,11 +224,7 @@ function useOverlay({
     update: popperUpdate,
   } = useFloating(
     {
-      // middleware: [
-      //   arrow({
-      //     element: arrowRef,
-      //   }),
-      // ],
+      middleware: modifiers,
       elements: {
         reference: triggerElement,
         floating: overlayElement,
