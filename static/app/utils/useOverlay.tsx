@@ -1,5 +1,5 @@
 import {useMemo, useRef, useState} from 'react';
-import {PopperProps, usePopper} from 'react-popper';
+import {autoUpdate, useFloating, UseFloatingOptions} from '@floating-ui/react';
 import {detectOverflow, Modifier} from '@popperjs/core';
 import type {ArrowModifier} from '@popperjs/core/lib/modifiers/arrow';
 import type {FlipModifier} from '@popperjs/core/lib/modifiers/flip';
@@ -101,7 +101,7 @@ export interface UseOverlayProps
   /**
    * Position for the overlay.
    */
-  position?: PopperProps<any>['placement'];
+  position?: UseFloatingOptions<any>['placement'];
   /**
    * Options to pass to the `preventOverflow` modifier.
    */
@@ -210,10 +210,28 @@ function useOverlay({
     [arrowElement, offset, arrowOptions, flipOptions, preventOverflowOptions, openState]
   );
   const {
-    styles: popperStyles,
-    state: popperState,
+    floatingStyles: popperStyles,
+    context: popperState,
     update: popperUpdate,
-  } = usePopper(triggerElement, overlayElement, {modifiers, placement: position});
+  } = useFloating(
+    {
+      // middleware: [
+      //   arrow({
+      //     element: arrowRef,
+      //   }),
+      // ],
+      elements: {
+        reference: triggerElement,
+        floating: overlayElement,
+      },
+      placement: position,
+      whileElementsMounted: autoUpdate,
+    }
+    // triggerElement,
+    // overlayElement,
+    // {modifiers, placement: position}
+  );
+  console.log(modifiers);
 
   // Get props for trigger button
   const {triggerProps, overlayProps: overlayTriggerAriaProps} = useOverlayTriggerAria(
@@ -288,12 +306,12 @@ function useOverlay({
     overlayRef,
     overlayProps: {
       ref: setOverlayElement,
-      style: popperStyles.popper,
+      style: popperStyles,
       ...mergeProps(overlayTriggerAriaProps, overlayAriaProps),
     },
     arrowProps: {
       ref: setArrowElement,
-      style: popperStyles.arrow,
+      style: {},
       placement: popperState?.placement,
     },
   };
