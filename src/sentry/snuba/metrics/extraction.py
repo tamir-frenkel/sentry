@@ -783,15 +783,15 @@ class OnDemandMetricSpec:
     def _parse_argument(
         op: MetricOperationType, metric_type: str, parsed_field: FieldParsingResult
     ) -> Optional[str]:
-        requires_single_argument = metric_type in ["s", "d"] or op in ["on_demand_apdex"]
-        if not requires_single_argument:
+        # counters dont have arguments
+        if metric_type == "c":
             return None
 
         if len(parsed_field.arguments) != 1:
             raise Exception(f"The operation {op} supports only a single parameter")
 
         argument = parsed_field.arguments[0]
-        map_argument = op not in ["on_demand_apdex"]
+        map_argument = op != "on_demand_apdex"
 
         return _map_field_name(argument) if map_argument else argument
 
