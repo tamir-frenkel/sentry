@@ -2,23 +2,123 @@ import type {SchemaFormConfig} from 'sentry/views/settings/organizationIntegrati
 
 import type {IssueConfigField} from './integrations';
 
+export const enum IssueAlertAction {
+  SLACK_NOTIFY_SERVICE_ACTION = 'sentry.integrations.slack.notify_action.SlackNotifyServiceAction',
+}
+
+export const enum IssueAlertCondition {
+  EVERY_EVENT_CONDITION = 'sentry.rules.conditions.every_event.EveryEventCondition',
+  FIRST_SEEN_EVENT_CONDITION = 'sentry.rules.conditions.first_seen_event.FirstSeenEventCondition',
+  REGRESSION_EVENT_CONDITION = 'sentry.rules.conditions.regression_event.RegressionEventCondition',
+  REAPPEARED_EVENT_CONDITION = 'sentry.rules.conditions.reappeared_event.ReappearedEventCondition',
+  EVENT_FREQUENCY_CONDITION = 'sentry.rules.conditions.event_frequency.EventFrequencyCondition',
+  EVENT_UNIQUE_USER_FREQUENCY_CONDITION = 'sentry.rules.conditions.event_frequency.EventUniqueUserFrequencyCondition',
+  EVENT_FREQUENCY_PERCENT_CONDITION = 'sentry.rules.conditions.event_frequency.EventFrequencyPercentCondition',
+}
+
+interface IssueAlertActionBase {
+  id: IssueAlertAction;
+  /**
+   * @deprecated No longer required but still provided by the api
+   */
+  name?: string;
+}
+
+interface IssueAlertSlackAction extends IssueAlertActionBase {
+  channel: string;
+  channel_id: string;
+  id: IssueAlertAction.SLACK_NOTIFY_SERVICE_ACTION;
+  tags: string;
+  /**
+   * The workspace that the slack channel belongs to
+   */
+  workspace: string;
+}
+
+interface IssueAlertFormFieldChoice {
+  type: 'choice';
+  choices?: [string | number, string][];
+  initial?: string;
+  placeholder?: string;
+}
+
+interface IssueAlertFormFieldString {
+  type: 'string';
+  initial?: string;
+  placeholder?: string;
+}
+
+interface IssueAlertFormFieldNumber {
+  type: 'number';
+  initial?: string;
+  placeholder?: number | string;
+}
+
 type IssueAlertRuleFormField =
-  | {
-      type: 'choice';
-      choices?: [string, string][];
-      initial?: string;
-      placeholder?: string;
-    }
-  | {
-      type: 'string';
-      initial?: string;
-      placeholder?: string;
-    }
-  | {
-      type: 'number';
-      initial?: string;
-      placeholder?: number | string;
-    };
+  | IssueAlertFormFieldChoice
+  | IssueAlertFormFieldString
+  | IssueAlertFormFieldNumber;
+
+interface IssueAlertConfigBase {
+  enabled: boolean;
+  id: string;
+  label: string;
+  /**
+   * "Send a Slack notification"
+   */
+  prompt?: string;
+}
+
+interface IssueAlertGenericAction {
+  id: IssueAlertAction;
+  formFields?: Record<string, IssueAlertRuleFormField>;
+}
+
+interface IssueAlertSlackConfig extends IssueAlertConfigBase {
+  formFields: {
+    channel: IssueAlertFormFieldString;
+    channel_id: IssueAlertFormFieldString;
+    tags: IssueAlertFormFieldString;
+    workspace: IssueAlertFormFieldChoice;
+  };
+  id: IssueAlertAction.SLACK_NOTIFY_SERVICE_ACTION;
+}
+
+interface IssueAlertGenericTicketIntegrationConfig extends IssueAlertConfigBase {
+  actionType: 'ticket';
+  formFields: SchemaFormConfig;
+  link: string;
+  ticketType: string;
+}
+
+interface IssueAlertGenericSentryAppIntegrationConfig extends IssueAlertConfigBase {
+  actionType: 'sentryapp';
+  formFields: SchemaFormConfig;
+  sentryAppInstallationUuid: string;
+}
+
+interface IssueAlertGenericConditionConfig extends IssueAlertConfigBase {
+  id: IssueAlertCondition;
+  formFields?: Record<string, IssueAlertRuleFormField>;
+}
+
+export type IssueAlertConfigurationAction =
+  | IssueAlertGenericAction
+  | IssueAlertGenericTicketIntegrationConfig
+  | IssueAlertGenericSentryAppIntegrationConfig
+  | IssueAlertSlackConfig;
+
+export type IssueAlertConfigurationCondition = IssueAlertGenericConditionConfig;
+
+/**
+ * Describes the actions, filters, and conditions that can be used
+ * to create an issue alert.
+ */
+export interface IssueAlertConfigurationResponse {
+  actions: IssueAlertConfigurationAction[];
+  conditions: IssueAlertConfigurationCondition[];
+  filters: any[];
+}
 
 /**
  * These templates that tell the UI how to render the action or condition
@@ -28,16 +128,8 @@ export interface IssueAlertRuleActionTemplate {
   enabled: boolean;
   id: string;
   label: string;
-  actionType?: 'ticket' | 'sentryapp';
-  formFields?:
-    | {
-        [key: string]: IssueAlertRuleFormField;
-      }
-    | SchemaFormConfig;
-  link?: string;
+  formFields?: Record<string, IssueAlertRuleFormField>;
   prompt?: string;
-  sentryAppInstallationUuid?: string;
-  ticketType?: string;
 }
 export type IssueAlertRuleConditionTemplate = IssueAlertRuleActionTemplate;
 

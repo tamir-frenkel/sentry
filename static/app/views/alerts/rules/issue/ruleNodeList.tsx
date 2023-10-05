@@ -6,6 +6,7 @@ import {t} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
 import {IssueOwnership, Organization, Project} from 'sentry/types';
 import {
+  IssueAlertConfigurationAction,
   IssueAlertRuleAction,
   IssueAlertRuleActionTemplate,
   IssueAlertRuleCondition,
@@ -158,7 +159,7 @@ class RuleNodeList extends Component<Props> {
   getNode = (
     template: IssueAlertRuleAction | IssueAlertRuleCondition,
     itemIdx: number
-  ): IssueAlertRuleActionTemplate | IssueAlertRuleConditionTemplate | null => {
+  ): IssueAlertConfigurationAction | null => {
     const {nodes, items, organization, onPropertyChange} = this.props;
     const node = nodes?.find(n => {
       return (

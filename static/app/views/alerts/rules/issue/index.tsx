@@ -54,6 +54,7 @@ import {
   Team,
 } from 'sentry/types';
 import {
+  IssueAlertConfiguration,
   IssueAlertRule,
   IssueAlertRuleAction,
   IssueAlertRuleActionTemplate,
@@ -148,11 +149,7 @@ type Props = {
 } & RouteComponentProps<RouteParams, {}>;
 
 type State = DeprecatedAsyncView['state'] & {
-  configs: {
-    actions: IssueAlertRuleActionTemplate[];
-    conditions: IssueAlertRuleConditionTemplate[];
-    filters: IssueAlertRuleConditionTemplate[];
-  } | null;
+  configs: IssueAlertConfiguration | null;
   detailedError: null | {
     [key: string]: string[];
   };
