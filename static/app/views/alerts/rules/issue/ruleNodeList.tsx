@@ -10,6 +10,7 @@ import {
   IssueAlertCondition,
   IssueAlertConditionId,
   IssueAlertConfigurationAction,
+  IssueAlertFilter,
   IssueAlertRuleActionTemplate,
   IssueAlertRuleConditionTemplate,
 } from 'sentry/types/alerts';
@@ -30,7 +31,7 @@ type Props = {
   /**
    * actions/conditions that have been added to the rule
    */
-  items: IssueAlertAction[] | IssueAlertCondition[];
+  items: IssueAlertAction[] | IssueAlertCondition[] | IssueAlertFilter[];
   /**
    * All available actions or conditions
    */

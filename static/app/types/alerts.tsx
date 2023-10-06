@@ -264,10 +264,10 @@ export interface UnsavedIssueAlertRule {
   /** When an issue matches [actionMatch] of the following */
   actionMatch: 'all' | 'any' | 'none';
   actions: IssueAlertAction[];
-  conditions: IssueAlertRuleCondition[];
+  conditions: IssueAlertCondition[];
   /** If that issue has [filterMatch] of these properties */
   filterMatch: 'all' | 'any' | 'none';
-  filters: IssueAlertRuleCondition[];
+  filters: IssueAlertFilter[];
   frequency: number;
   name: string;
   environment?: null | string;
