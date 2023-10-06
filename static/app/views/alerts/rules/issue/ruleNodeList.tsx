@@ -6,10 +6,11 @@ import {t} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
 import {IssueOwnership, Organization, Project} from 'sentry/types';
 import {
+  IssueAlertAction,
+  IssueAlertCondition,
+  IssueAlertConditionId,
   IssueAlertConfigurationAction,
-  IssueAlertRuleAction,
   IssueAlertRuleActionTemplate,
-  IssueAlertRuleCondition,
   IssueAlertRuleConditionTemplate,
 } from 'sentry/types/alerts';
 import {
@@ -18,7 +19,6 @@ import {
   COMPARISON_TYPE_CHOICE_VALUES,
   COMPARISON_TYPE_CHOICES,
 } from 'sentry/views/alerts/utils/constants';
-import {REAPPEARED_EVENT_CONDITION} from 'sentry/views/projectInstall/issueAlertOptions';
 
 import {AlertRuleComparisonType} from '../metric/types';
 
@@ -30,7 +30,7 @@ type Props = {
   /**
    * actions/conditions that have been added to the rule
    */
-  items: IssueAlertRuleAction[] | IssueAlertRuleCondition[];
+  items: IssueAlertAction[] | IssueAlertCondition[];
   /**
    * All available actions or conditions
    */
@@ -73,7 +73,7 @@ const createSelectOptions = (
     }
 
     if (
-      node.id === REAPPEARED_EVENT_CONDITION &&
+      node.id === IssueAlertConditionId.REAPPEARED_EVENT_CONDITION &&
       organization.features.includes('escalating-issues')
     ) {
       const label = t('The issue changes state from archived to escalating');
@@ -157,7 +157,7 @@ class RuleNodeList extends Component<Props> {
   propertyChangeTimeout: number | undefined = undefined;
 
   getNode = (
-    template: IssueAlertRuleAction | IssueAlertRuleCondition,
+    template: IssueAlertAction | IssueAlertCondition,
     itemIdx: number
   ): IssueAlertConfigurationAction | null => {
     const {nodes, items, organization, onPropertyChange} = this.props;
@@ -180,7 +180,7 @@ class RuleNodeList extends Component<Props> {
       return node;
     }
 
-    const item = items[itemIdx] as IssueAlertRuleCondition;
+    const item = items[itemIdx] as IssueAlertCondition;
 
     let changeAlertNode: IssueAlertRuleConditionTemplate = {
       ...node,
@@ -269,25 +269,23 @@ class RuleNodeList extends Component<Props> {
       <Fragment>
         <RuleNodes>
           {error}
-          {items.map(
-            (item: IssueAlertRuleAction | IssueAlertRuleCondition, idx: number) => (
-              <RuleNode
-                key={idx}
-                index={idx}
-                node={this.getNode(item, idx)}
-                onDelete={onDeleteRow}
-                onPropertyChange={onPropertyChange}
-                onReset={onResetRow}
-                data={item}
-                organization={organization}
-                project={project}
-                disabled={disabled}
-                ownership={ownership}
-                incompatibleRule={incompatibleRules?.includes(idx)}
-                incompatibleBanner={incompatibleBanner === idx}
-              />
-            )
-          )}
+          {items.map((item: IssueAlertAction | IssueAlertCondition, idx: number) => (
+            <RuleNode
+              key={idx}
+              index={idx}
+              node={this.getNode(item, idx)}
+              onDelete={onDeleteRow}
+              onPropertyChange={onPropertyChange}
+              onReset={onResetRow}
+              data={item}
+              organization={organization}
+              project={project}
+              disabled={disabled}
+              ownership={ownership}
+              incompatibleRule={incompatibleRules?.includes(idx)}
+              incompatibleBanner={incompatibleBanner === idx}
+            />
+          ))}
         </RuleNodes>
         <StyledSelectControl
           placeholder={placeholder}

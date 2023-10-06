@@ -9,7 +9,7 @@ import ExternalLink from 'sentry/components/links/externalLink';
 import {t, tct} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
 import {Choices, IssueConfigField, Organization} from 'sentry/types';
-import {IssueAlertRuleAction} from 'sentry/types/alerts';
+import {IssueAlertTicketAction} from 'sentry/types/alerts';
 import DeprecatedAsyncView from 'sentry/views/deprecatedAsyncView';
 
 const IGNORED_FIELDS = ['Sprint'];
@@ -19,7 +19,7 @@ type Props = {
   formFields: {[key: string]: any};
   index: number;
   // The AlertRuleAction from DB.
-  instance: IssueAlertRuleAction;
+  instance: IssueAlertTicketAction;
   onSubmitAction: (
     data: {[key: string]: string},
     fetchedFieldOptionsCache: Record<string, Choices>
@@ -169,7 +169,8 @@ class TicketRuleModal extends AbstractExternalIssueForm<Props, State> {
         .map(field => {
           // Overwrite defaults from cache.
           if (instance.hasOwnProperty(field.name)) {
-            field.default = instance[field.name] || field.default;
+            field.default =
+              (instance[field.name] as string | number | undefined) || field.default;
           }
           return field;
         })

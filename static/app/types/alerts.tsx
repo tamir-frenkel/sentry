@@ -2,12 +2,16 @@ import type {SchemaFormConfig} from 'sentry/views/settings/organizationIntegrati
 
 import type {IssueConfigField} from './integrations';
 
-export const enum IssueAlertActionId {
+export enum IssueAlertActionId {
   SLACK_NOTIFY_SERVICE_ACTION = 'sentry.integrations.slack.notify_action.SlackNotifyServiceAction',
   NOTIFY_EMAIL_ACTION = 'sentry.mail.actions.NotifyEmailAction',
+  DISCORD_NOTIFY_SERVICE_ACTION = 'sentry.integrations.discord.notify_action.DiscordNotifyServiceAction',
+  JIRA_CREATE_TICKET_ACTION = 'sentry.integrations.jira.notify_action.JiraCreateTicketAction',
+  AZURE_DEVOPS_CREATE_TICKET_ACTION = 'sentry.integrations.vsts.notify_action.AzureDevopsCreateTicketAction',
+  NOTIFY_EVENT_SENTRY_APP_ACTION = 'sentry.rules.actions.notify_event_sentry_app.NotifyEventSentryAppAction',
 }
 
-export const enum IssueAlertConditionId {
+export enum IssueAlertConditionId {
   EVERY_EVENT_CONDITION = 'sentry.rules.conditions.every_event.EveryEventCondition',
   FIRST_SEEN_EVENT_CONDITION = 'sentry.rules.conditions.first_seen_event.FirstSeenEventCondition',
   REGRESSION_EVENT_CONDITION = 'sentry.rules.conditions.regression_event.RegressionEventCondition',
@@ -15,6 +19,18 @@ export const enum IssueAlertConditionId {
   EVENT_FREQUENCY_CONDITION = 'sentry.rules.conditions.event_frequency.EventFrequencyCondition',
   EVENT_UNIQUE_USER_FREQUENCY_CONDITION = 'sentry.rules.conditions.event_frequency.EventUniqueUserFrequencyCondition',
   EVENT_FREQUENCY_PERCENT_CONDITION = 'sentry.rules.conditions.event_frequency.EventFrequencyPercentCondition',
+  EVENT_ATTRIBUTE_FILTER = 'sentry.rules.filters.event_attribute.EventAttributeFilter',
+}
+
+export enum IssueAlertFilterId {
+  AGE_COMPARISON_FILTER = 'sentry.rules.filters.age_comparison.AgeComparisonFilter',
+  ISSUE_OCCURRENCES_FILTER = 'sentry.rules.filters.issue_occurrences.IssueOccurrencesFilter',
+  ASSIGNED_TO_FILTER = 'sentry.rules.filters.assigned_to.AssignedToFilter',
+  LATEST_RELEASE_FILTER = 'sentry.rules.filters.latest_release.LatestReleaseFilter',
+  ISSUE_CATEGORY_FILTER = 'sentry.rules.filters.issue_category.IssueCategoryFilter',
+  EVENT_ATTRIBUTE_FILTER = 'sentry.rules.filters.event_attribute.EventAttributeFilter',
+  TAGGED_EVENT_FILTER = 'sentry.rules.filters.tagged_event.TaggedEventFilter',
+  LEVEL_FILTER = 'sentry.rules.filters.level.LevelFilter',
 }
 
 interface IssueAlertFormFieldChoice {
@@ -42,11 +58,16 @@ type IssueAlertRuleFormField =
   | IssueAlertFormFieldNumber;
 
 interface IssueAlertActionBase {
-  id: IssueAlertActionId;
+  id: string;
   /**
    * @deprecated No longer required but still provided by the api
    */
   name?: string;
+}
+
+export interface IssueAlertGenericAction extends IssueAlertActionBase {
+  // All the keys that do not yet have a type defined
+  id: IssueAlertActionId.DISCORD_NOTIFY_SERVICE_ACTION;
 }
 
 export interface IssueAlertEmailAction extends IssueAlertActionBase {
@@ -67,10 +88,80 @@ interface IssueAlertSlackAction extends IssueAlertActionBase {
   workspace: string;
 }
 
+export interface IssueAlertTicketAction extends IssueAlertActionBase {
+  [key: string]: number | string | undefined | IssueConfigField[];
+  id:
+    | IssueAlertActionId.JIRA_CREATE_TICKET_ACTION
+    | IssueAlertActionId.AZURE_DEVOPS_CREATE_TICKET_ACTION;
+  integration: string;
+  dynamic_form_fields?: IssueConfigField[];
+}
+
+export interface IssueAlertSentryAppAction extends IssueAlertActionBase {
+  id: IssueAlertActionId.NOTIFY_EVENT_SENTRY_APP_ACTION;
+  sentryAppInstallationUuid: string;
+  disabled?: string;
+}
+
 /**
  * When triggered an issue alert will fire a action
  */
-export type IssueAlertAction = IssueAlertEmailAction | IssueAlertSlackAction;
+export type IssueAlertAction =
+  | IssueAlertGenericAction
+  | IssueAlertEmailAction
+  | IssueAlertTicketAction
+  | IssueAlertSlackAction;
+
+interface IssueAlertConditionBase {
+  id: string;
+  /**
+   * @deprecated No longer required but still provided by the api
+   */
+  name?: string;
+}
+
+export interface IssueAlertGenericCondition extends IssueAlertConditionBase {
+  id:
+    | IssueAlertConditionId.EVERY_EVENT_CONDITION
+    | IssueAlertConditionId.FIRST_SEEN_EVENT_CONDITION
+    | IssueAlertConditionId.REGRESSION_EVENT_CONDITION
+    | IssueAlertConditionId.REAPPEARED_EVENT_CONDITION
+    | IssueAlertConditionId.EVENT_FREQUENCY_CONDITION
+    | IssueAlertConditionId.EVENT_UNIQUE_USER_FREQUENCY_CONDITION
+    | IssueAlertConditionId.EVENT_FREQUENCY_PERCENT_CONDITION;
+  fallthroughType?: string;
+  targetIdentifier?: unknown;
+  targetType?: string;
+}
+
+export interface IssueAlertEventAttributeCondition extends IssueAlertConditionBase {
+  attribute: string;
+  id: IssueAlertConditionId.EVENT_ATTRIBUTE_FILTER;
+  match: string;
+  /**
+   * Can be undefined for certain matchers
+   */
+  value?: string;
+}
+
+export type IssueAlertCondition =
+  | IssueAlertGenericCondition
+  | IssueAlertEventAttributeCondition;
+
+interface IssueAlertFilterBase {
+  id: IssueAlertFilterId;
+  /**
+   * @deprecated No longer required but still provided by the api
+   */
+  name?: string;
+}
+
+export interface IssueAlertGenericFilter extends IssueAlertFilterBase {
+  // All the keys that do not yet have a type defined
+  id: IssueAlertFilterId;
+}
+
+export type IssueAlertFilter = IssueAlertGenericFilter;
 
 interface IssueAlertConfigBase {
   enabled: boolean;

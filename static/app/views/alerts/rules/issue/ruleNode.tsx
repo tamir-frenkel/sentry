@@ -15,19 +15,19 @@ import {space} from 'sentry/styles/space';
 import {Choices, IssueOwnership, Organization, Project} from 'sentry/types';
 import {
   AssigneeTargetType,
-  IssueAlertRuleAction,
-  IssueAlertRuleActionTemplate,
-  IssueAlertRuleCondition,
-  IssueAlertRuleConditionTemplate,
+  IssueAlertAction,
+  IssueAlertActionId,
+  IssueAlertCondition,
+  IssueAlertConditionId,
+  IssueAlertConfigurationAction,
+  IssueAlertFilter,
+  IssueAlertFilterId,
+  IssueAlertTicketAction,
   MailActionTargetType,
 } from 'sentry/types/alerts';
 import MemberTeamFields from 'sentry/views/alerts/rules/issue/memberTeamFields';
 import SentryAppRuleModal from 'sentry/views/alerts/rules/issue/sentryAppRuleModal';
 import TicketRuleModal from 'sentry/views/alerts/rules/issue/ticketRuleModal';
-import {
-  EVENT_FREQUENCY_PERCENT_CONDITION,
-  REAPPEARED_EVENT_CONDITION,
-} from 'sentry/views/projectInstall/issueAlertOptions';
 import {SchemaFormConfig} from 'sentry/views/settings/organizationIntegrations/sentryAppExternalForm';
 
 const NOTIFY_EMAIL_ACTION = 'sentry.mail.actions.NotifyEmailAction';
@@ -62,7 +62,7 @@ function NumberField({
   // Set default value of number fields to the placeholder value
   useEffect(() => {
     if (
-      data.id === 'sentry.rules.filters.issue_occurrences.IssueOccurrencesFilter' &&
+      data.id === IssueAlertFilterId.ISSUE_OCCURRENCES_FILTER &&
       isNaN(value) &&
       !isNaN(Number(fieldConfig.placeholder))
     ) {
@@ -92,7 +92,10 @@ function AssigneeFilterFields({
   disabled,
   onMemberTeamChange,
 }: FieldProps) {
-  const isInitialized = data.targetType !== undefined && `${data.targetType}`.length > 0;
+  const isInitialized =
+    'targetType' in data &&
+    data.targetType !== undefined &&
+    `${data.targetType}`.length > 0;
   return (
     <MemberTeamFields
       disabled={disabled}
@@ -119,7 +122,10 @@ function MailActionFields({
   disabled,
   onMemberTeamChange,
 }: FieldProps) {
-  const isInitialized = data.targetType !== undefined && `${data.targetType}`.length > 0;
+  const isInitialized =
+    'targetType' in data &&
+    data.targetType !== undefined &&
+    `${data.targetType}`.length > 0;
   let issueOwnersLabel = t('Issue Owners');
   if (hasStreamlineTargeting(organization)) {
     issueOwnersLabel = t('Suggested Assignees');
@@ -130,7 +136,7 @@ function MailActionFields({
       project={project}
       organization={organization}
       loading={!isInitialized}
-      ruleData={data as IssueAlertRuleAction}
+      ruleData={data as IssueAlertAction}
       onChange={onMemberTeamChange}
       options={[
         {value: MailActionTargetType.ISSUE_OWNERS, label: issueOwnersLabel},
@@ -229,7 +235,7 @@ export type FormField = {
 };
 
 interface Props {
-  data: IssueAlertRuleAction | IssueAlertRuleCondition;
+  data: IssueAlertAction | IssueAlertCondition | IssueAlertFilter;
   disabled: boolean;
   index: number;
   onDelete: (rowIndex: number) => void;
@@ -239,7 +245,7 @@ interface Props {
   project: Project;
   incompatibleBanner?: boolean;
   incompatibleRule?: boolean;
-  node?: IssueAlertRuleActionTemplate | IssueAlertRuleConditionTemplate | null;
+  node?: IssueAlertConfigurationAction | null;
   ownership?: null | IssueOwnership;
 }
 
@@ -262,9 +268,11 @@ function RuleNode({
   }, [index, onDelete]);
 
   const handleMemberTeamChange = useCallback(
-    ({targetType, targetIdentifier}: IssueAlertRuleAction | IssueAlertRuleCondition) => {
-      onPropertyChange(index, 'targetType', `${targetType}`);
-      onPropertyChange(index, 'targetIdentifier', `${targetIdentifier}`);
+    (changeData: Props['data']) => {
+      if ('targetType' in changeData || 'targetIdentifier' in changeData) {
+        onPropertyChange(index, 'targetType', `${changeData.targetType}`);
+        onPropertyChange(index, 'targetIdentifier', `${changeData.targetIdentifier}`);
+      }
     },
     [index, onPropertyChange]
   );
@@ -321,7 +329,7 @@ function RuleNode({
     }
 
     if (
-      data.id === REAPPEARED_EVENT_CONDITION &&
+      data.id === IssueAlertConditionId.REAPPEARED_EVENT_CONDITION &&
       organization.features.includes('escalating-issues')
     ) {
       label = t('The issue changes state from archived to escalating');
@@ -336,7 +344,11 @@ function RuleNode({
 
       // If matcher is "is set" or "is not set", then we do not want to show the value input
       // because it is not required
-      if (key === 'value' && (data.match === 'is' || data.match === 'ns')) {
+      if (
+        key === 'value' &&
+        'match' in data &&
+        (data.match === 'is' || data.match === 'ns')
+      ) {
         return null;
       }
       return (
@@ -379,7 +391,7 @@ function RuleNode({
                 formFields={node.formFields || {}}
                 link={node.link}
                 ticketType={node.ticketType}
-                instance={data}
+                instance={data as IssueAlertTicketAction}
                 index={index}
                 onSubmitAction={updateParentFromTicketRule}
                 organization={organization}
@@ -397,7 +409,9 @@ function RuleNode({
         <Button
           size="sm"
           icon={<IconSettings size="xs" />}
-          disabled={Boolean(data.disabled) || disabled}
+          disabled={
+            'disabled' in data && data.disabled ? Boolean(data.disabled) : disabled
+          }
           onClick={() => {
             openModal(
               deps => (
@@ -423,7 +437,7 @@ function RuleNode({
   }
 
   function conditionallyRenderHelpfulBanner() {
-    if (data.id === EVENT_FREQUENCY_PERCENT_CONDITION) {
+    if (data.id === IssueAlertConditionId.EVENT_FREQUENCY_PERCENT_CONDITION) {
       if (!project.platform || !releaseHealth.includes(project.platform)) {
         return (
           <MarginlessAlert type="error">
@@ -453,7 +467,7 @@ function RuleNode({
       );
     }
 
-    if (data.id === 'sentry.integrations.slack.notify_action.SlackNotifyServiceAction') {
+    if (data.id === IssueAlertActionId.SLACK_NOTIFY_SERVICE_ACTION) {
       return (
         <MarginlessAlert
           type="info"
@@ -473,9 +487,7 @@ function RuleNode({
       );
     }
 
-    if (
-      data.id === 'sentry.integrations.discord.notify_action.DiscordNotifyServiceAction'
-    ) {
+    if (data.id === IssueAlertActionId.DISCORD_NOTIFY_SERVICE_ACTION) {
       return (
         <MarginlessAlert
           type="info"

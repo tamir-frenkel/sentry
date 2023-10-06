@@ -7,7 +7,7 @@ import SelectMembers from 'sentry/components/selectMembers';
 import TeamSelector from 'sentry/components/teamSelector';
 import {space} from 'sentry/styles/space';
 import {Organization, Project} from 'sentry/types';
-import {IssueAlertRuleAction, IssueAlertRuleCondition} from 'sentry/types/alerts';
+import {IssueAlertAction, IssueAlertCondition} from 'sentry/types/alerts';
 
 interface OptionRecord {
   label: string;
@@ -18,11 +18,11 @@ type Props = {
   disabled: boolean;
   loading: boolean;
   memberValue: string | number;
-  onChange: (action: IssueAlertRuleAction) => void;
+  onChange: (action: IssueAlertAction) => void;
   options: OptionRecord[];
   organization: Organization;
   project: Project;
-  ruleData: IssueAlertRuleAction | IssueAlertRuleCondition;
+  ruleData: IssueAlertAction | IssueAlertCondition;
   teamValue: string | number;
 };
 

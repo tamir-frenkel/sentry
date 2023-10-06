@@ -14,6 +14,7 @@ import {Organization} from 'sentry/types';
 import {
   IssueAlertAction,
   IssueAlertActionId,
+  IssueAlertConditionId,
   IssueAlertEmailAction,
 } from 'sentry/types/alerts';
 import withOrganization from 'sentry/utils/withOrganization';
@@ -29,22 +30,14 @@ export enum RuleAction {
   CREATE_ALERT_LATER,
 }
 
-const UNIQUE_USER_FREQUENCY_CONDITION =
-  'sentry.rules.conditions.event_frequency.EventUniqueUserFrequencyCondition';
-const EVENT_FREQUENCY_CONDITION =
-  'sentry.rules.conditions.event_frequency.EventFrequencyCondition';
-export const EVENT_FREQUENCY_PERCENT_CONDITION =
-  'sentry.rules.conditions.event_frequency.EventFrequencyPercentCondition';
-export const REAPPEARED_EVENT_CONDITION =
-  'sentry.rules.conditions.reappeared_event.ReappearedEventCondition';
 const ISSUE_ALERT_DEFAULT_ACTION: IssueAlertEmailAction = {
   id: IssueAlertActionId.NOTIFY_EMAIL_ACTION,
   targetType: 'IssueOwners',
 };
 
 const METRIC_CONDITION_MAP = {
-  [MetricValues.ERRORS]: EVENT_FREQUENCY_CONDITION,
-  [MetricValues.USERS]: UNIQUE_USER_FREQUENCY_CONDITION,
+  [MetricValues.ERRORS]: IssueAlertConditionId.EVENT_FREQUENCY_CONDITION,
+  [MetricValues.USERS]: IssueAlertConditionId.EVENT_UNIQUE_USER_FREQUENCY_CONDITION,
 } as const;
 
 type StateUpdater = (updatedData: RequestDataFragment) => void;
@@ -86,10 +79,10 @@ function getConditionFrom(
   let condition: string;
   switch (metricValue) {
     case MetricValues.ERRORS:
-      condition = EVENT_FREQUENCY_CONDITION;
+      condition = IssueAlertConditionId.EVENT_FREQUENCY_CONDITION;
       break;
     case MetricValues.USERS:
-      condition = UNIQUE_USER_FREQUENCY_CONDITION;
+      condition = IssueAlertConditionId.EVENT_UNIQUE_USER_FREQUENCY_CONDITION;
       break;
     default:
       throw new RangeError('Supplied metric value is not handled');
