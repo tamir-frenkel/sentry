@@ -68,7 +68,7 @@ interface IssueAlertSlackAction extends IssueAlertActionBase {
 }
 
 /**
- * When triggered the issue alert will fire these actions
+ * When triggered an issue alert will fire a action
  */
 export type IssueAlertAction = IssueAlertEmailAction | IssueAlertSlackAction;
 
