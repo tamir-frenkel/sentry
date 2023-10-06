@@ -6,7 +6,7 @@ import {render, screen, userEvent} from 'sentry-test/reactTestingLibrary';
 
 import {addSuccessMessage} from 'sentry/actionCreators/indicator';
 import {makeCloseButton} from 'sentry/components/globalModal/components';
-import {IssueAlertRuleAction} from 'sentry/types/alerts';
+import {IssueAlertAction} from 'sentry/types/alerts';
 import TicketRuleModal from 'sentry/views/alerts/rules/issue/ticketRuleModal';
 
 jest.unmock('sentry/utils/recreateRoute');
@@ -77,7 +77,7 @@ describe('ProjectAlerts -> TicketRuleModal', function () {
     });
   };
 
-  const renderComponent = (props: Partial<IssueAlertRuleAction> = {}) => {
+  const renderComponent = (props: Partial<IssueAlertAction> = {}) => {
     const {organization, routerContext} = initializeOrg();
     addMockConfigsAPICall({
       label: 'Reporter',

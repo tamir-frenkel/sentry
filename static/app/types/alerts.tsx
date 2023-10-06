@@ -2,11 +2,12 @@ import type {SchemaFormConfig} from 'sentry/views/settings/organizationIntegrati
 
 import type {IssueConfigField} from './integrations';
 
-export const enum IssueAlertAction {
+export const enum IssueAlertActionId {
   SLACK_NOTIFY_SERVICE_ACTION = 'sentry.integrations.slack.notify_action.SlackNotifyServiceAction',
+  NOTIFY_EMAIL_ACTION = 'sentry.mail.actions.NotifyEmailAction',
 }
 
-export const enum IssueAlertCondition {
+export const enum IssueAlertConditionId {
   EVERY_EVENT_CONDITION = 'sentry.rules.conditions.every_event.EveryEventCondition',
   FIRST_SEEN_EVENT_CONDITION = 'sentry.rules.conditions.first_seen_event.FirstSeenEventCondition',
   REGRESSION_EVENT_CONDITION = 'sentry.rules.conditions.regression_event.RegressionEventCondition',
@@ -14,25 +15,6 @@ export const enum IssueAlertCondition {
   EVENT_FREQUENCY_CONDITION = 'sentry.rules.conditions.event_frequency.EventFrequencyCondition',
   EVENT_UNIQUE_USER_FREQUENCY_CONDITION = 'sentry.rules.conditions.event_frequency.EventUniqueUserFrequencyCondition',
   EVENT_FREQUENCY_PERCENT_CONDITION = 'sentry.rules.conditions.event_frequency.EventFrequencyPercentCondition',
-}
-
-interface IssueAlertActionBase {
-  id: IssueAlertAction;
-  /**
-   * @deprecated No longer required but still provided by the api
-   */
-  name?: string;
-}
-
-interface IssueAlertSlackAction extends IssueAlertActionBase {
-  channel: string;
-  channel_id: string;
-  id: IssueAlertAction.SLACK_NOTIFY_SERVICE_ACTION;
-  tags: string;
-  /**
-   * The workspace that the slack channel belongs to
-   */
-  workspace: string;
 }
 
 interface IssueAlertFormFieldChoice {
@@ -59,6 +41,37 @@ type IssueAlertRuleFormField =
   | IssueAlertFormFieldString
   | IssueAlertFormFieldNumber;
 
+interface IssueAlertActionBase {
+  id: IssueAlertActionId;
+  /**
+   * @deprecated No longer required but still provided by the api
+   */
+  name?: string;
+}
+
+export interface IssueAlertEmailAction extends IssueAlertActionBase {
+  id: IssueAlertActionId.NOTIFY_EMAIL_ACTION;
+  fallthroughType?: string;
+  targetIdentifier?: unknown;
+  targetType?: string;
+}
+
+interface IssueAlertSlackAction extends IssueAlertActionBase {
+  channel: string;
+  channel_id: string;
+  id: IssueAlertActionId.SLACK_NOTIFY_SERVICE_ACTION;
+  tags: string;
+  /**
+   * The workspace that the slack channel belongs to
+   */
+  workspace: string;
+}
+
+/**
+ * When triggered the issue alert will fire these actions
+ */
+export type IssueAlertAction = IssueAlertEmailAction | IssueAlertSlackAction;
+
 interface IssueAlertConfigBase {
   enabled: boolean;
   id: string;
@@ -69,11 +82,14 @@ interface IssueAlertConfigBase {
   prompt?: string;
 }
 
-interface IssueAlertGenericAction {
-  id: IssueAlertAction;
+interface IssueAlertGenericConfig extends IssueAlertConfigBase {
+  id: IssueAlertActionId;
   formFields?: Record<string, IssueAlertRuleFormField>;
 }
 
+/**
+ * The object describing the options the slack action can use.
+ */
 interface IssueAlertSlackConfig extends IssueAlertConfigBase {
   formFields: {
     channel: IssueAlertFormFieldString;
@@ -81,31 +97,31 @@ interface IssueAlertSlackConfig extends IssueAlertConfigBase {
     tags: IssueAlertFormFieldString;
     workspace: IssueAlertFormFieldChoice;
   };
-  id: IssueAlertAction.SLACK_NOTIFY_SERVICE_ACTION;
+  id: IssueAlertActionId.SLACK_NOTIFY_SERVICE_ACTION;
 }
 
-interface IssueAlertGenericTicketIntegrationConfig extends IssueAlertConfigBase {
+interface IssueAlertTicketIntegrationConfig extends IssueAlertConfigBase {
   actionType: 'ticket';
   formFields: SchemaFormConfig;
   link: string;
   ticketType: string;
 }
 
-interface IssueAlertGenericSentryAppIntegrationConfig extends IssueAlertConfigBase {
+interface IssueAlertSentryAppIntegrationConfig extends IssueAlertConfigBase {
   actionType: 'sentryapp';
   formFields: SchemaFormConfig;
   sentryAppInstallationUuid: string;
 }
 
 interface IssueAlertGenericConditionConfig extends IssueAlertConfigBase {
-  id: IssueAlertCondition;
+  id: IssueAlertConditionId;
   formFields?: Record<string, IssueAlertRuleFormField>;
 }
 
 export type IssueAlertConfigurationAction =
-  | IssueAlertGenericAction
-  | IssueAlertGenericTicketIntegrationConfig
-  | IssueAlertGenericSentryAppIntegrationConfig
+  | IssueAlertGenericConfig
+  | IssueAlertTicketIntegrationConfig
+  | IssueAlertSentryAppIntegrationConfig
   | IssueAlertSlackConfig;
 
 export type IssueAlertConfigurationCondition = IssueAlertGenericConditionConfig;
@@ -133,15 +149,15 @@ export interface IssueAlertRuleActionTemplate {
 }
 export type IssueAlertRuleConditionTemplate = IssueAlertRuleActionTemplate;
 
-/**
- * These are the action or condition data that the user is editing or has saved.
- */
-export interface IssueAlertRuleAction
-  extends Omit<IssueAlertRuleActionTemplate, 'formFields' | 'enabled'> {
-  // These are the same values as the keys in `formFields` for a template
-  [key: string]: any;
-  dynamic_form_fields?: IssueConfigField[];
-}
+// /**
+//  * These are the action or condition data that the user is editing or has saved.
+//  */
+// export interface IssueAlertRuleAction
+//   extends Omit<IssueAlertRuleActionTemplate, 'formFields' | 'enabled'> {
+//   // These are the same values as the keys in `formFields` for a template
+//   [key: string]: any;
+//   dynamic_form_fields?: IssueConfigField[];
+// }
 
 export type IssueAlertRuleCondition = Omit<
   IssueAlertRuleConditionTemplate,
@@ -156,7 +172,7 @@ export type IssueAlertRuleCondition = Omit<
 export interface UnsavedIssueAlertRule {
   /** When an issue matches [actionMatch] of the following */
   actionMatch: 'all' | 'any' | 'none';
-  actions: IssueAlertRuleAction[];
+  actions: IssueAlertAction[];
   conditions: IssueAlertRuleCondition[];
   /** If that issue has [filterMatch] of these properties */
   filterMatch: 'all' | 'any' | 'none';

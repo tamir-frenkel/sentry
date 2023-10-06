@@ -11,7 +11,11 @@ import * as Layout from 'sentry/components/layouts/thirds';
 import {t} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
 import {Organization} from 'sentry/types';
-import {IssueAlertRuleAction} from 'sentry/types/alerts';
+import {
+  IssueAlertAction,
+  IssueAlertActionId,
+  IssueAlertEmailAction,
+} from 'sentry/types/alerts';
 import withOrganization from 'sentry/utils/withOrganization';
 
 export enum MetricValues {
@@ -33,11 +37,8 @@ export const EVENT_FREQUENCY_PERCENT_CONDITION =
   'sentry.rules.conditions.event_frequency.EventFrequencyPercentCondition';
 export const REAPPEARED_EVENT_CONDITION =
   'sentry.rules.conditions.reappeared_event.ReappearedEventCondition';
-const ISSUE_ALERT_DEFAULT_ACTION: Omit<
-  IssueAlertRuleAction,
-  'label' | 'name' | 'prompt'
-> = {
-  id: 'sentry.mail.actions.NotifyEmailAction',
+const ISSUE_ALERT_DEFAULT_ACTION: IssueAlertEmailAction = {
+  id: IssueAlertActionId.NOTIFY_EMAIL_ACTION,
   targetType: 'IssueOwners',
 };
 
@@ -69,7 +70,7 @@ type State = DeprecatedAsyncComponent['state'] & {
 
 type RequestDataFragment = {
   actionMatch: string;
-  actions: Omit<IssueAlertRuleAction, 'label' | 'name' | 'prompt'>[];
+  actions: Omit<IssueAlertAction, 'label' | 'name' | 'prompt'>[];
   conditions: {id: string; interval: string; value: string}[] | undefined;
   defaultRules: boolean;
   frequency: number;
