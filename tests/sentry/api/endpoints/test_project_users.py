@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from sentry.models.eventuser import EventUser
 from sentry.testutils.cases import APITestCase
+from sentry.testutils.helpers.datetime import before_now, iso_format
 from sentry.testutils.silo import region_silo_test
 
 
@@ -12,6 +13,7 @@ class ProjectUsersTest(APITestCase):
     def setUp(self):
         super().setUp()
 
+        self.min_ago = iso_format(before_now(minutes=1))
         self.project = self.create_project()
         self.euser1 = EventUser.objects.create(
             project_id=self.project.id,
@@ -20,6 +22,19 @@ class ProjectUsersTest(APITestCase):
             username="foobar",
             ip_address="127.0.0.1",
         )
+        self.event1 = self.store_event(
+            project_id=self.project.id,
+            data={
+                "user": {
+                    "id": self.euser1.ident,
+                    "email": self.euser1.email,
+                    "username": self.euser1.username,
+                    "ip_address": self.euser1.ip_address,
+                },
+                "event_id": "a" * 32,
+                "timestamp": self.min_ago,
+            },
+        )
 
         self.euser2 = EventUser.objects.create(
             project_id=self.project.id,
@@ -27,6 +42,19 @@ class ProjectUsersTest(APITestCase):
             email="bar@example.com",
             username="baz",
             ip_address="192.168.0.1",
+        )
+        self.event2 = self.store_event(
+            project_id=self.project.id,
+            data={
+                "user": {
+                    "id": self.euser2.ident,
+                    "email": self.euser2.email,
+                    "username": self.euser2.username,
+                    "ip_address": self.euser2.ip_address,
+                },
+                "event_id": "b" * 32,
+                "timestamp": self.min_ago,
+            },
         )
 
         self.path = reverse(
@@ -45,7 +73,7 @@ class ProjectUsersTest(APITestCase):
 
         assert response.status_code == 200, response.content
         assert len(response.data) == 2
-        assert sorted(map(lambda x: x["id"], response.data)) == sorted(
+        assert sorted(map(lambda x: x["user_id"], response.data)) == sorted(
             [str(self.euser1.id), str(self.euser2.id)]
         )
         mock_record.assert_called_with(

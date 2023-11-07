@@ -1,13 +1,13 @@
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from sentry import analytics
+from sentry import analytics, eventstore
 from sentry.api.api_publish_status import ApiPublishStatus
 from sentry.api.base import region_silo_endpoint
 from sentry.api.bases.project import ProjectEndpoint
-from sentry.api.paginator import DateTimePaginator
+from sentry.api.paginator import ChainPaginator
 from sentry.api.serializers import serialize
-from sentry.models.eventuser import EventUser
+from sentry.utils.eventuser import find_eventuser_with_snuba
 
 
 @region_silo_endpoint
@@ -37,21 +37,32 @@ class ProjectUsersEndpoint(ProjectEndpoint):
             project_id=project.id,
             endpoint="sentry.api.endpoints.project_users.get",
         )
-        queryset = EventUser.objects.filter(project_id=project.id)
+        # queryset = EventUser.objects.filter(project_id=project.id)
+        conditions = []
         if request.GET.get("query"):
             try:
                 field, identifier = request.GET["query"].strip().split(":", 1)
-                queryset = queryset.filter(
-                    project_id=project.id,
-                    **{EventUser.attr_from_keyword(field): identifier},
-                )
+                # queryset = queryset.filter(
+                #     project_id=project.id,
+                #     **{EventUser.attr_from_keyword(field): identifier},
+                # )
+                conditions.append([field, "EQ", identifier])
             except (ValueError, KeyError):
                 return Response([])
+        snuba_filter = eventstore.Filter(project_ids=[project.id], conditions=conditions)
+        events = eventstore.backend.get_events(
+            filter=snuba_filter,
+            orderby=["-timestamp", "-event_id"],
+            tenant_ids={"organization_id": project.organization.id},
+        )
+        users = []
+        for e in events:
+            users.append(find_eventuser_with_snuba(e))
 
         return self.paginate(
             request=request,
-            queryset=queryset,
-            order_by="-date_added",
-            paginator_cls=DateTimePaginator,
+            sources=[users],
+            # order_by="-date_added",
+            paginator_cls=ChainPaginator,
             on_results=lambda x: serialize(x, request.user),
         )
