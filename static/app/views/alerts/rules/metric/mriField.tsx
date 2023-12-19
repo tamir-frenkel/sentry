@@ -105,7 +105,7 @@ function MriField({aggregate, project, onChange}: Props) {
         value: metric.mri,
         trailingItems: (
           <Fragment>
-            <Tag tooltipText={t('Type')}>{getReadableMetricType(metric.type)}</Tag>
+            <Tag tooltipText={t('Type')}>{getReadableMetricType(metric.mri)}</Tag>
             <Tag tooltipText={t('Unit')}>{metric.unit}</Tag>
           </Fragment>
         ),

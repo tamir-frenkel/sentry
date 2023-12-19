@@ -240,7 +240,8 @@ const metricTypeToReadable: Record<MetricType, string> = {
 };
 
 // Converts from "c" to "counter"
-export function getReadableMetricType(type?: string) {
+export function getReadableMetricType(mri: MRI) {
+  const {type} = parseMRI(mri) ?? {type: ''};
   return metricTypeToReadable[type as MetricType] ?? t('unknown');
 }
 

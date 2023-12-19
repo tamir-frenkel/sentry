@@ -101,7 +101,7 @@ export function QueryBuilder({
               value: metric.mri,
               trailingItems: mriMode ? undefined : (
                 <Fragment>
-                  <Tag tooltipText={t('Type')}>{getReadableMetricType(metric.type)}</Tag>
+                  <Tag tooltipText={t('Type')}>{getReadableMetricType(metric.mri)}</Tag>
                   <Tag tooltipText={t('Unit')}>{metric.unit}</Tag>
                 </Fragment>
               ),
