@@ -251,6 +251,7 @@ class TriggersChart extends PureComponent<Props, State> {
       projects,
       query,
       dataset,
+      aggregate,
     } = this.props;
 
     const statsPeriod = this.getStatsPeriod();
@@ -276,7 +277,7 @@ class TriggersChart extends PureComponent<Props, State> {
         statsPeriod,
         environment: environment ? [environment] : [],
         dataset: queryDataset,
-        ...getForceMetricsLayerQueryExtras(organization, dataset),
+        ...getForceMetricsLayerQueryExtras(organization, dataset, aggregate),
       });
       this.setState({totalCount});
     } catch (e) {
@@ -434,7 +435,7 @@ class TriggersChart extends PureComponent<Props, State> {
         dataset,
         newAlertOrQuery,
       }),
-      ...getForceMetricsLayerQueryExtras(organization, dataset),
+      ...getForceMetricsLayerQueryExtras(organization, dataset, aggregate),
       ...(shouldUseErrorsDiscoverDataset(query, dataset)
         ? {dataset: DiscoverDatasets.ERRORS}
         : {}),

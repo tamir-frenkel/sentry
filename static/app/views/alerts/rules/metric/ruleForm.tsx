@@ -674,7 +674,7 @@ class RuleFormContainer extends DeprecatedAsyncComponent<Props, State> {
           wizardV3: 'true',
           referrer: location?.query?.referrer,
           sessionId,
-          ...getForceMetricsLayerQueryExtras(organization, dataset),
+          ...getForceMetricsLayerQueryExtras(organization, dataset, aggregate),
         }
       );
       // if we get a 202 back it means that we have an async task

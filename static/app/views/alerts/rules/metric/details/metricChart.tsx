@@ -552,7 +552,7 @@ class MetricChart extends PureComponent<Props, State> {
         newAlertOrQuery: false,
         useOnDemandMetrics: isOnDemandAlert,
       }),
-      ...getForceMetricsLayerQueryExtras(organization, dataset),
+      ...getForceMetricsLayerQueryExtras(organization, dataset, aggregate),
     };
 
     if (shouldUseErrorsDataset(organization, dataset, query)) {
