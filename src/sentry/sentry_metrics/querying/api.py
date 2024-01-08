@@ -24,6 +24,7 @@ from sentry.models.project import Project
 from sentry.search.utils import parse_datetime_string
 from sentry.sentry_metrics.querying.utils import remove_if_match
 from sentry.snuba.dataset import Dataset
+from sentry.snuba.metrics.naming_layer.mri import parse_mri_field
 from sentry.snuba.metrics_layer.query import run_query
 from sentry.utils.snuba import SnubaError
 
@@ -313,9 +314,7 @@ class QueryParser:
 
         return MutableTimeseries(timeseries=timeseries)
 
-    def generate_queries(
-        self, environments: Sequence[Environment]
-    ) -> Generator[Timeseries, None, None]:
+    def generate_queries(self, environments: Sequence[Environment]) -> Sequence[Timeseries]:
         """
         Generates multiple timeseries queries given a base query.
         """
@@ -327,9 +326,14 @@ class QueryParser:
         mql_filters = self._build_mql_filters()
         mql_group_bys = self._build_mql_group_bys()
 
+        queries = []
         for field in self._fields:
             mql_query = self._build_mql_query(field, mql_filters, mql_group_bys)
-            yield self._parse_mql(mql_query).inject_environments(environments).get_mutated()
+            queries.append(
+                self._parse_mql(mql_query).inject_environments(environments).get_mutated()
+            )
+
+        return queries
 
 
 class QueryExecutor:
@@ -645,7 +649,62 @@ def _translate_query_results(execution_results: List[QueryResult]) -> Mapping[st
     }
 
 
-def run_metrics_query(
+dataclass(frozen=True)
+
+
+@dataclass(frozen=True)
+class DeletedMetricFilter:
+    project_id: int
+    mri: str
+    deleted_at: datetime
+
+
+@dataclass(frozen=True)
+class DeletedFieldFilter:
+    project_id: int
+    field: str
+    deleted_at: datetime
+
+
+def get_deletion_field_filters(
+    fields: Sequence[str],
+    organization: Organization,
+    projects: Sequence[Project],
+    deleted_metrics: Sequence[DeletedMetricFilter],
+    start: datetime,
+    end: datetime,
+):
+    field_filters = []
+
+    queried_mris = [
+        parsed_field for parsed_field in map(parse_mri_field, fields) if parsed_field.mri
+    ]
+    projects_ids = [project.id for project in projects]
+
+    for deleted_metric in deleted_metrics:
+
+        if deleted_metric.project_id not in projects_ids:
+            continue
+
+        if deleted_metric.deleted_at < start:
+            continue
+
+        fields_with_deleted_metric = [
+            field for field in queried_mris if deleted_metric.mri == field.mri.mri_string
+        ]
+        for field in fields_with_deleted_metric:
+            field_filters.append(
+                DeletedFieldFilter(
+                    project_id=deleted_metric.project_id,
+                    field=str(field),
+                    deleted_at=deleted_metric.deleted_at,
+                )
+            )
+
+    return field_filters
+
+
+def _run_metrics_query(
     fields: Sequence[str],
     query: Optional[str],
     group_bys: Optional[Sequence[str]],
@@ -657,6 +716,13 @@ def run_metrics_query(
     environments: Sequence[Environment],
     referrer: str,
 ):
+    # Preparing the executor, that will be responsible for scheduling the execution multiple queries.
+    executor = QueryExecutor(organization=organization, referrer=referrer)
+
+    # Parsing the input and iterating over each timeseries.
+    parser = QueryParser(fields=fields, query=query, group_bys=group_bys)
+    queries = parser.generate_queries(environments=environments)
+
     # Build the basic query that contains the metadata.
     base_query = MetricsQuery(
         start=start,
@@ -667,12 +733,7 @@ def run_metrics_query(
         ),
     )
 
-    # Preparing the executor, that will be responsible for scheduling the execution multiple queries.
-    executor = QueryExecutor(organization=organization, referrer=referrer)
-
-    # Parsing the input and iterating over each timeseries.
-    parser = QueryParser(fields=fields, query=query, group_bys=group_bys)
-    for timeseries in parser.generate_queries(environments=environments):
+    for timeseries in queries:
         query = (
             base_query.set_query(timeseries)
             .set_rollup(Rollup(interval=interval))
@@ -685,5 +746,97 @@ def run_metrics_query(
     for result in executor.execute():
         results.append(result)
 
+    return results
+
+
+def run_metrics_query(
+    fields: Sequence[str],
+    query: Optional[str],
+    group_bys: Optional[Sequence[str]],
+    interval: int,
+    start: datetime,
+    end: datetime,
+    organization: Organization,
+    projects: Sequence[Project],
+    environments: Sequence[Environment],
+    referrer: str,
+    deleted_metrics: Sequence[DeletedMetricFilter] = [],
+):
+    # base result set
+    results = _run_metrics_query(
+        fields=fields,
+        query=query,
+        group_bys=group_bys,
+        interval=interval,
+        start=start,
+        end=end,
+        organization=organization,
+        projects=projects,
+        environments=environments,
+        referrer=referrer,
+    )
+
+    deleted_metrics = [
+        DeletedMetricFilter(
+            project_id=4506518013214720,
+            mri="c:custom/index.page.views@none",
+            deleted_at=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+        ),
+    ]
+
+    # fields whose mris are deleted in at least one of the queried projects. Base for the subtraction queries
+    deleted_fields = get_deletion_field_filters(
+        fields=fields,
+        organization=organization,
+        projects=projects,
+        deleted_metrics=deleted_metrics,
+        start=start,
+        end=end,
+    )
+
+    # run the subtraction queries
+    deletion_results = []
+    for deleted_field in deleted_fields:
+        deletion_result = _run_metrics_query(
+            fields=[deleted_field.field],
+            query=query,
+            group_bys=group_bys,
+            interval=interval,
+            start=start,
+            end=end,
+            organization=organization,
+            projects=[project for project in projects if project.id == deleted_field.project_id],
+            environments=environments,
+            referrer=referrer,
+        )
+
+        deletion_results.append((deletion_result[0], deleted_field))
+
+    results = subtract_results(results, deletion_results)
+
     # We translate the result back to the pre-existing format.
     return _translate_query_results(execution_results=results)
+
+
+def subtract_results(
+    results: list[QueryResult], deletion_results: list[Tuple[QueryResult, DeletedFieldFilter]]
+) -> list[QueryResult]:
+    for result in results:
+        for deletion_result, deleted_filter in deletion_results:
+            if result.query_name == deletion_result.query_name:
+                result.result.series = subtract_series(
+                    result.result["series"],
+                    deletion_result.result["series"],
+                    deleted_filter.deleted_at,
+                )
+                # TODO: handle this later
+                # result.totals = subtract_totals(result.totals, deletion_result.totals, deleted_fields)
+
+
+def subtract_series(series: Series, deletion_series: Series, deletion_timestamp) -> Series:
+    for i, entry in enumerate(series["data"]):
+        entry_timestamp = datetime.fromisoformat(entry["time"])
+        if entry_timestamp <= deletion_timestamp:
+            series["data"][i]["aggregate_value"] -= deletion_series["data"][i]["aggregate_value"]
+
+    return series

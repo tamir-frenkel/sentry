@@ -14,7 +14,7 @@ function DDMContainer({children}: Props) {
 
   return (
     <Feature
-      features={['ddm-ui', 'custom-metrics']}
+      features={['ddm-experimental', 'custom-metrics']}
       requireAll
       organization={organization}
       renderDisabled={() => (

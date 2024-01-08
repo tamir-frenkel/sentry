@@ -200,7 +200,7 @@ class ParsedMRIField:
     mri: ParsedMRI
 
     def __str__(self) -> str:
-        return f"{self.op}({self.mri.name})"
+        return f"{self.op}({self.mri.mri_string})"
 
 
 def parse_mri_field(field: Optional[str]) -> Optional[ParsedMRIField]:

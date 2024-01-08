@@ -430,7 +430,7 @@ function Sidebar({organization}: Props) {
   const ddmPath = `/organizations/${organization?.slug}/ddm/`;
   const ddm = hasOrganization && (
     <Feature
-      features={['ddm-ui', 'custom-metrics']}
+      features={['ddm-experimental', 'custom-metrics']}
       organization={organization}
       requireAll
     >

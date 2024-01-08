@@ -93,6 +93,55 @@ def _build_use_case_id_filter(use_case_id: UseCaseID):
     return Condition(Column("use_case_id"), Op.IN, use_case_values)
 
 
+dataclass(frozen=True)
+
+
+class DeletedMetricFilter:
+    project_id: int
+    mri: str
+    deleted_at: datetime
+
+
+def build_deleted_metric_filter(
+    use_case_id: UseCaseID, org_id: int, deleted_metrics: Sequence[DeletedMetricFilter]
+) -> Sequence[Condition]:
+    """
+    Build a filter that will exclude deleted metrics from the query.
+    """
+
+    result_filters = []
+
+    if not deleted_metrics:
+        return result_filters
+
+    for deleted_metric in deleted_metrics:
+        resolved_mri = indexer.resolve(use_case_id, org_id, deleted_metric.mri)
+        if resolved_mri is None:
+            continue
+
+        result_filters.append(
+            ConditionGroup(
+                [
+                    Condition(Column("project_id"), Op.EQ, deleted_metric.project_id),
+                    Condition(Column("metric_id"), Op.EQ, resolved_mri),
+                    Condition(Column("timestamp"), Op.GT, deleted_metric.deleted_at),
+                ],
+                ConditionGroup.AND,
+            )
+        )
+
+    return result_filters
+
+
+def build_where(
+    use_case_id: UseCaseID, org_id: int, deleted_metrics: Sequence[DeletedMetricFilter]
+) -> list[Condition]:
+    result_filters = [_build_use_case_id_filter(use_case_id)]
+    result_filters.extend(build_deleted_metric_filter(use_case_id, org_id, deleted_metrics))
+
+    return result_filters
+
+
 def _get_metrics_for_entity(
     entity_key: EntityKey,
     project_ids: Sequence[int],
@@ -100,12 +149,13 @@ def _get_metrics_for_entity(
     use_case_id: UseCaseID,
     start: Optional[datetime] = None,
     end: Optional[datetime] = None,
+    deleted_metrics: Sequence[DeletedMetricFilter] = None,
 ) -> List[SnubaDataType]:
     return run_metrics_query(
         entity_key=entity_key,
         select=[Column("metric_id")],
         groupby=[Column("metric_id")],
-        where=[_build_use_case_id_filter(use_case_id)],
+        where=build_where(use_case_id, org_id, deleted_metrics),
         referrer="snuba.metrics.get_metrics_names_for_entity",
         project_ids=project_ids,
         org_id=org_id,
@@ -122,12 +172,13 @@ def _get_metrics_by_project_for_entity(
     use_case_id: UseCaseID,
     start: Optional[datetime] = None,
     end: Optional[datetime] = None,
+    deleted_metrics: Sequence[DeletedMetricFilter] = None,
 ) -> List[SnubaDataType]:
     return run_metrics_query(
         entity_key=entity_key,
         select=[Column("project_id"), Column("metric_id")],
         groupby=[Column("project_id"), Column("metric_id")],
-        where=[_build_use_case_id_filter(use_case_id)],
+        where=build_where(use_case_id, org_id, deleted_metrics),
         referrer="snuba.metrics.get_metrics_names_for_entity",
         project_ids=project_ids,
         org_id=org_id,

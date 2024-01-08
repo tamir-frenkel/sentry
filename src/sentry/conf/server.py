@@ -1501,7 +1501,7 @@ SENTRY_FEATURES: dict[str, bool | None] = {
     "organizations:ddm-experimental": False,
     # Delightful Developer Metrics (DDM):
     # Enable sidebar menu item and all UI (requires custom-metrics flag as well)
-    "organizations:ddm-ui": False,
+    "organizations:ddm-ui": True,
     # Enable the default alert at project creation to be the high priority alert
     "organizations:default-high-priority-alerts": False,
     # Enables automatically deriving of code mappings

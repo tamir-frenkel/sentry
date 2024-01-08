@@ -6,7 +6,7 @@ export function hasDDMExperimentalFeature(organization: Organization) {
 }
 
 export function hasDDMFeature(organization: Organization) {
-  return organization.features.includes('ddm-ui');
+  return true || organization.features.includes('ddm-i');
 }
 
 /**
