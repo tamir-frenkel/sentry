@@ -188,7 +188,7 @@ def safe_for_comment(
 
     for file in pr_files:
         filename = file["filename"]
-        # don't count the file if it was added or is not a Python file
+        # don't count the file if it was added or is not a supported language
         if file["status"] == "added" or filename.split(".")[-1] not in PATCH_PARSERS:
             continue
 
@@ -247,10 +247,12 @@ def get_projects_and_filenames_from_source_file(
     return project_list, sentry_filenames
 
 
-def get_top_5_issues_by_count_for_file(
-    projects: List[Project], sentry_filenames: List[str], function_names: List[str]
+def get_top_5_issues_by_count_for_function(
+    projects: List[Project], sentry_filenames: List[str], function_name: str
 ) -> List[Dict[str, Any]]:
-    """Given a list of issue group ids, return a sublist of the top 5 ordered by event count"""
+    """Given a list of issue group ids, a list of sentry_filenames corresponding to a single Github file, and
+    a single function in that Github file, return a sublist of the top 5 issues ordered by event count
+    """
     group_ids = list(
         Group.objects.filter(
             first_seen__gte=datetime.now() - timedelta(days=90),
@@ -271,10 +273,10 @@ def get_top_5_issues_by_count_for_file(
         multi_if.extend(
             [
                 Function(
-                    "in",
+                    "equals",
                     [
                         stackframe_function_name(i),
-                        function_names,
+                        function_name,
                     ],
                 ),
                 stackframe_function_name(i),
@@ -330,8 +332,8 @@ def get_top_5_issues_by_count_for_file(
                                     ),
                                     Condition(
                                         stackframe_function_name(i),
-                                        Op.IN,
-                                        function_names,
+                                        Op.EQ,
+                                        function_name,
                                     ),
                                 ],
                             )
@@ -417,7 +419,7 @@ def open_pr_comment_workflow(pr_id: int) -> None:
     pullrequest_files = get_pr_files(pr_files)
 
     issue_table_contents = {}
-    top_issues_per_file = []
+    top_issues_in_files = []
 
     # fetch issues related to the files
     for file in pullrequest_files:
@@ -436,13 +438,24 @@ def open_pr_comment_workflow(pr_id: int) -> None:
         if not len(function_names):
             continue
 
-        top_issues = get_top_5_issues_by_count_for_file(
-            list(projects), list(sentry_filenames), list(function_names)
-        )
+        top_issues = []
+        top_issue_ids = set()
+        for function_name in function_names:
+            issues_for_function = get_top_5_issues_by_count_for_function(
+                list(projects), list(sentry_filenames), function_name
+            )
+            # avoid adding duplicate issues to the list of issues for the file
+            top_issues.extend(
+                [issue for issue in issues_for_function if issue["group_id"] not in top_issue_ids]
+            )
+            top_issue_ids.update([issue["group_id"] for issue in issues_for_function])
+
         if not len(top_issues):
             continue
 
-        top_issues_per_file.append(top_issues)
+        top_issues.sort(key=lambda x: x["event_count"], reverse=True)
+        top_issues = top_issues[:5]  # get the top 5 issues for the file based on event count
+        top_issues_in_files.append(top_issues)
 
         issue_table_contents[file.filename] = get_issue_table_contents(top_issues)
 
@@ -474,7 +487,7 @@ def open_pr_comment_workflow(pr_id: int) -> None:
     comment_body = format_open_pr_comment(issue_tables)
 
     # list all issues in the comment
-    issue_list: List[Dict[str, Any]] = list(itertools.chain.from_iterable(top_issues_per_file))
+    issue_list: List[Dict[str, Any]] = list(itertools.chain.from_iterable(top_issues_in_files))
     issue_id_list: List[int] = [issue["group_id"] for issue in issue_list]
 
     pr_comment = get_pr_comment(pr_id, comment_type=CommentType.OPEN_PR)
