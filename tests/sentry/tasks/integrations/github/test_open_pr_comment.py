@@ -317,7 +317,12 @@ class TestGetCommentIssues(CreateEventTestCase):
 
     def test_simple(self):
         group_id = [
-            self._create_event(function_names=["blue", "planet"], user_id=str(i)) for i in range(7)
+            self._create_event(
+                function_names=["other.planet", "component.blue"],
+                filenames=["baz.py", "foo.py"],
+                user_id=str(i),
+            )
+            for i in range(7)
         ][0].group.id
         top_5_issues = get_top_5_issues_by_count_for_file(
             [self.project], ["baz.py"], ["world", "planet"]
@@ -326,7 +331,7 @@ class TestGetCommentIssues(CreateEventTestCase):
         top_5_issue_ids = [issue["group_id"] for issue in top_5_issues]
         function_names = [issue["function_name"] for issue in top_5_issues]
         assert top_5_issue_ids == [group_id, self.group_id]
-        assert function_names == ["planet", "world"]
+        assert function_names == ["other.planet", "world"]
 
     def test_filters_resolved_issue(self):
         group = Group.objects.all()[0]

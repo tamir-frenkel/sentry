@@ -247,6 +247,56 @@ def get_projects_and_filenames_from_source_file(
     return project_list, sentry_filenames
 
 
+stackframe_function_name = lambda i: Function(
+    "arrayElement",
+    (Column("exception_frames.function"), i),
+)
+
+
+def _get_function_name_conditions(stackframe_level: int, function_names: List[str]):
+    prepended_function_names = ["%." + function_name for function_name in function_names]
+    function_name_conditions = [
+        Condition(
+            stackframe_function_name(stackframe_level),
+            Op.LIKE,
+            function_name,
+        )
+        for function_name in prepended_function_names
+    ]
+    function_name_conditions.append(
+        Condition(
+            stackframe_function_name(stackframe_level),
+            Op.IN,
+            function_names,
+        ),
+    )
+    return function_name_conditions
+
+
+def _get_function_name_functions(stackframe_level: int, function_names: List[str]):
+    prepended_function_names = ["%." + function_name for function_name in function_names]
+    function_name_conditions = [
+        Function(
+            "like",
+            [
+                stackframe_function_name(stackframe_level),
+                function_name,
+            ],
+        )
+        for function_name in prepended_function_names
+    ]
+    function_name_conditions.append(
+        Function(
+            "in",
+            [
+                stackframe_function_name(stackframe_level),
+                function_names,
+            ],
+        )
+    )
+    return function_name_conditions
+
+
 def get_top_5_issues_by_count_for_file(
     projects: List[Project], sentry_filenames: List[str], function_names: List[str]
 ) -> List[Dict[str, Any]]:
@@ -261,25 +311,20 @@ def get_top_5_issues_by_count_for_file(
     )
     project_ids = [p.id for p in projects]
 
-    stackframe_function_name = lambda i: Function(
-        "arrayElement",
-        (Column("exception_frames.function"), i),
-    )
+    function_name_conditions = lambda i: _get_function_name_conditions(i, function_names)
+    function_name_functions = lambda i: _get_function_name_functions(i, function_names)
+
     multi_if = []
     for i in range(-STACKFRAME_COUNT, 0):
         # if, then conditions
-        multi_if.extend(
-            [
-                Function(
-                    "in",
-                    [
-                        stackframe_function_name(i),
-                        function_names,
-                    ],
-                ),
-                stackframe_function_name(i),
-            ]
-        )
+        stackframe_function_name_conditions = function_name_functions(i)
+        for func in stackframe_function_name_conditions:
+            multi_if.extend(
+                [
+                    func,
+                    stackframe_function_name(i),
+                ]
+            )
     # else condition
     multi_if.append(stackframe_function_name(-1))
 
@@ -320,6 +365,10 @@ def get_top_5_issues_by_count_for_file(
                             BooleanCondition(
                                 BooleanOp.AND,
                                 [
+                                    BooleanCondition(
+                                        BooleanOp.OR,
+                                        function_name_conditions(i),
+                                    ),
                                     Condition(
                                         Function(
                                             "arrayElement",
@@ -327,11 +376,6 @@ def get_top_5_issues_by_count_for_file(
                                         ),
                                         Op.IN,
                                         sentry_filenames,
-                                    ),
-                                    Condition(
-                                        stackframe_function_name(i),
-                                        Op.IN,
-                                        function_names,
                                     ),
                                 ],
                             )
