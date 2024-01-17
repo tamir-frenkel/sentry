@@ -1,9 +1,9 @@
 import re
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import Set
 
 
-class LanguageParser:
+class LanguageParser(ABC):
     @staticmethod
     @abstractmethod
     def extract_functions_from_patch(patch: str) -> Set[str]:
