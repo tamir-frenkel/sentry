@@ -318,13 +318,12 @@ def get_top_5_issues_by_count_for_file(
     for i in range(-STACKFRAME_COUNT, 0):
         # if, then conditions
         stackframe_function_name_conditions = function_name_functions(i)
-        for func in stackframe_function_name_conditions:
-            multi_if.extend(
-                [
-                    func,
-                    stackframe_function_name(i),
-                ]
-            )
+        multi_if.extend(
+            [
+                Function("or", stackframe_function_name_conditions),
+                stackframe_function_name(i),
+            ]
+        )
     # else condition
     multi_if.append(stackframe_function_name(-1))
 
