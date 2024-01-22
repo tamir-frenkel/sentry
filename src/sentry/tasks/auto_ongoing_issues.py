@@ -14,7 +14,7 @@ from sentry.monitoring.queues import backend
 from sentry.silo import SiloMode
 from sentry.tasks.base import instrumented_task
 from sentry.types.group import GroupSubStatus
-from sentry.utils import metrics
+from sentry.utils import json, metrics
 from sentry.utils.iterators import chunked
 from sentry.utils.query import RangeQuerySetWrapper
 
@@ -127,10 +127,11 @@ def schedule_auto_transition_issues_new_to_ongoing(
 
     logger_extra = {
         "first_seen_lte": first_seen_lte,
-        "first_seen_lte_datetime": first_seen_lte_datetime,
+        "first_seen_lte_datetime": json.dumps(first_seen_lte_datetime),
+        "num_groups_to_transition": len(base_queryset),
     }
     if base_queryset:
-        logger_extra["issue_first_seen"] = base_queryset[0].first_seen
+        logger_extra["issue_first_seen"] = json.dumps(base_queryset[0].first_seen)
     logger.info(
         "auto_transition_issues_new_to_ongoing started",
         extra=logger_extra,
