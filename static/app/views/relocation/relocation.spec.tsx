@@ -127,7 +127,7 @@ describe('Relocation', function () {
       await waitForRenderSuccess('get-started');
       await waitFor(() => expect(fetchPublicKey).toHaveBeenCalled());
 
-      expect(await screen.getByRole('button', {name: 'Continue'})).toBeDisabled();
+      expect(screen.getByRole('button', {name: 'Continue'})).toBeDisabled();
     });
 
     it('should be allowed to go to next step if org slug is entered and region is selected', async function () {
@@ -136,11 +136,11 @@ describe('Relocation', function () {
 
       ConfigStore.set('regions', [{name: fakeRegionName, url: fakeRegionUrl}]);
       ConfigStore.set('relocationConfig', {selectableRegions: [fakeRegionName]});
-      const orgSlugsInput = await screen.getByLabelText('org-slugs');
-      const continueButton = await screen.getByRole('button', {name: 'Continue'});
+      const orgSlugsInput = screen.getByLabelText('org-slugs');
+      const continueButton = screen.getByRole('button', {name: 'Continue'});
       await userEvent.type(orgSlugsInput, 'test-org');
-      await userEvent.type(await screen.getByLabelText('region'), 'Narnia');
-      await userEvent.click(await screen.getByRole('menuitemradio'));
+      await userEvent.type(screen.getByLabelText('region'), 'Narnia');
+      await userEvent.click(screen.getByRole('menuitemradio'));
       expect(continueButton).toBeEnabled();
     });
 
@@ -161,11 +161,9 @@ describe('Relocation', function () {
       await waitFor(() => expect(fetchExistingRelocation).toHaveBeenCalled());
 
       expect(fetchPublicKey).toHaveBeenCalledTimes(1);
-      expect(
-        await screen.queryByRole('button', {name: 'Continue'})
-      ).not.toBeInTheDocument();
-      expect(await screen.queryByLabelText('org-slugs')).not.toBeInTheDocument();
-      expect(await screen.getByRole('button', {name: 'Retry'})).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Continue'})).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('org-slugs')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', {name: 'Retry'})).toBeInTheDocument();
 
       MockApiClient.addMockResponse({
         url: '/relocations/',
@@ -177,8 +175,8 @@ describe('Relocation', function () {
       await waitFor(() => expect(screen.getByTestId('get-started')).toBeInTheDocument());
 
       expect(fetchExistingRelocation).toHaveBeenCalledTimes(1);
-      expect(await screen.queryByLabelText('org-slugs')).toBeInTheDocument();
-      expect(await screen.queryByRole('button', {name: 'Continue'})).toBeInTheDocument();
+      expect(screen.queryByLabelText('org-slugs')).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Continue'})).toBeInTheDocument();
     });
   });
 
@@ -190,8 +188,8 @@ describe('Relocation', function () {
       expect(
         await screen.findByText("Save Sentry's public key to your machine")
       ).toBeInTheDocument();
-      expect(await screen.getByText('key.pub')).toBeInTheDocument();
-      expect(await screen.getByRole('button', {name: 'Continue'})).toBeInTheDocument();
+      expect(screen.getByText('key.pub')).toBeInTheDocument();
+      expect(screen.getByRole('button', {name: 'Continue'})).toBeInTheDocument();
     });
 
     it('should show loading indicator if key retrieval still in progress', function () {
@@ -218,11 +216,9 @@ describe('Relocation', function () {
       await waitFor(() => expect(fetchPublicKey).toHaveBeenCalled());
 
       expect(fetchExistingRelocation).toHaveBeenCalledTimes(1);
-      expect(
-        await screen.queryByRole('button', {name: 'Continue'})
-      ).not.toBeInTheDocument();
-      expect(await screen.queryByText('key.pub')).not.toBeInTheDocument();
-      expect(await screen.getByRole('button', {name: 'Retry'})).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Continue'})).not.toBeInTheDocument();
+      expect(screen.queryByText('key.pub')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', {name: 'Retry'})).toBeInTheDocument();
 
       MockApiClient.addMockResponse({
         url: '/publickeys/relocations/',
@@ -236,8 +232,8 @@ describe('Relocation', function () {
       await waitFor(() => expect(screen.getByTestId('public-key')).toBeInTheDocument());
 
       expect(fetchExistingRelocation).toHaveBeenCalledTimes(1);
-      expect(await screen.queryByText('key.pub')).toBeInTheDocument();
-      expect(await screen.queryByRole('button', {name: 'Continue'})).toBeInTheDocument();
+      expect(screen.getByText('key.pub')).toBeInTheDocument();
+      expect(screen.getByRole('button', {name: 'Continue'})).toBeInTheDocument();
     });
   });
 
@@ -323,8 +319,8 @@ describe('Relocation', function () {
       await waitForRenderSuccess('get-started');
       ConfigStore.set('regions', [{name: fakeRegionName, url: fakeRegionUrl}]);
       ConfigStore.set('relocationConfig', {selectableRegions: [fakeRegionName]});
-      const orgSlugsInput = await screen.getByLabelText('org-slugs');
-      const continueButton = await screen.getByRole('button', {name: 'Continue'});
+      const orgSlugsInput = screen.getByLabelText('org-slugs');
+      const continueButton = screen.getByRole('button', {name: 'Continue'});
       await userEvent.type(orgSlugsInput, 'test-org');
       await userEvent.type(screen.getByLabelText('region'), 'Narnia');
       await userEvent.click(screen.getByRole('menuitemradio'));

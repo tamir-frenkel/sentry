@@ -109,39 +109,39 @@ describe('GroupEventCarousel', () => {
       });
     });
 
-    it('will disable the dropdown if there is only one event', async () => {
+    it('will disable the dropdown if there is only one event', () => {
       jest.spyOn(useMedia, 'default').mockReturnValue(true);
 
       render(<GroupEventCarousel {...singleEventProps} />);
 
-      expect(await screen.getByRole('button', {name: 'Recommended'})).toBeDisabled();
+      expect(screen.getByRole('button', {name: 'Recommended'})).toBeDisabled();
     });
 
-    it('if user default is recommended, it will show it as default', async () => {
+    it('if user default is recommended, it will show it as default', () => {
       ConfigStore.loadInitialData(ConfigFixture({user: recommendedUser}));
       jest.spyOn(useMedia, 'default').mockReturnValue(true);
 
       render(<GroupEventCarousel {...singleEventProps} />);
 
-      expect(await screen.getByText('Recommended')).toBeInTheDocument();
+      expect(screen.getByText('Recommended')).toBeInTheDocument();
     });
 
-    it('if user default is latest, it will show it as default', async () => {
+    it('if user default is latest, it will show it as default', () => {
       ConfigStore.loadInitialData(ConfigFixture({user: latestUser}));
       jest.spyOn(useMedia, 'default').mockReturnValue(true);
 
       render(<GroupEventCarousel {...singleEventProps} />);
 
-      expect(await screen.getByText('Latest')).toBeInTheDocument();
+      expect(screen.getByText('Latest')).toBeInTheDocument();
     });
 
-    it('if user default is oldest, it will show it as default', async () => {
+    it('if user default is oldest, it will show it as default', () => {
       ConfigStore.loadInitialData(ConfigFixture({user: oldestUser}));
       jest.spyOn(useMedia, 'default').mockReturnValue(true);
 
       render(<GroupEventCarousel {...singleEventProps} />);
 
-      expect(await screen.getByText('Oldest')).toBeInTheDocument();
+      expect(screen.getByText('Oldest')).toBeInTheDocument();
     });
   });
 

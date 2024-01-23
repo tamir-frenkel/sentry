@@ -69,7 +69,7 @@ describe('DomainSelector', function () {
 
     await waitForElementToBeRemoved(() => screen.getByTestId('loading-indicator'));
 
-    await selectEvent.openMenu(screen.getByText('All'));
+    selectEvent.openMenu(screen.getByText('All'));
 
     expect(screen.getByText('sentry_user')).toBeInTheDocument();
     expect(screen.getByText('sentry_organization')).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('DomainSelector', function () {
 
     await waitForElementToBeRemoved(() => screen.getByTestId('loading-indicator'));
 
-    await selectEvent.openMenu(screen.getByText('All'));
+    selectEvent.openMenu(screen.getByText('All'));
 
     await userEvent.type(screen.getByRole('textbox'), 'p');
 

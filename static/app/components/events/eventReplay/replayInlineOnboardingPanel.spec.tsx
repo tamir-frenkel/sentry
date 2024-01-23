@@ -14,10 +14,10 @@ describe('replayInlineOnboardingPanel', () => {
     expect(await screen.findByText('Configure Session Replay')).toBeInTheDocument();
   });
 
-  it('should not render if hideUntil is set', async () => {
+  it('should not render if hideUntil is set', () => {
     localStorage.getItem = jest.fn().mockReturnValue(Date.now() + TEN_SECONDS);
     render(<ReplayInlineOnboardingPanel />);
-    expect(await screen.queryByText('Configure Session Replay')).not.toBeInTheDocument();
+    expect(screen.queryByText('Configure Session Replay')).not.toBeInTheDocument();
   });
 
   it('should clear the hideUntil time if it has expired', async () => {
