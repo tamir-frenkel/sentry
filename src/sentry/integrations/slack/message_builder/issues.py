@@ -50,9 +50,10 @@ from sentry.notifications.utils.participants import (
 )
 from sentry.services.hybrid_cloud.actor import ActorType, RpcActor
 from sentry.services.hybrid_cloud.identity import RpcIdentity, identity_service
+from sentry.services.hybrid_cloud.integration.model import RpcIntegration
 from sentry.services.hybrid_cloud.user.model import RpcUser
 from sentry.types.group import SUBSTATUS_TO_STR
-from sentry.types.integrations import ExternalProviderEnum, ExternalProviders
+from sentry.types.integrations import ExternalProviders
 from sentry.utils import json
 
 STATUSES = {"resolved": "resolved", "ignored": "ignored", "unresolved": "re-opened"}
@@ -229,7 +230,10 @@ def get_group_assignees(group: Group) -> Sequence[Mapping[str, Any]]:
 
 
 def get_suggested_assignees(
-    project: Project, event: GroupEvent, current_assignee: RpcUser | Team | None
+    project: Project,
+    event: GroupEvent,
+    current_assignee: RpcUser | Team | None,
+    integration: RpcIntegration | None,
 ) -> list[str]:
     """Get suggested assignees as a list of formatted strings"""
     suggested_assignees = []
@@ -260,8 +264,11 @@ def get_suggested_assignees(
                 # for user assignees, we first try to get their Slack identity; if it's not linked,
                 # we use their display name linked with their email
                 assignee_identity = None
-                assignee_identities = identity_service.get_user_identities_by_provider_type(
-                    user_id=assignee.id, provider_type=ExternalProviderEnum.SLACK.value
+                assignee_identities = identity_service.get_identity(
+                    user_id=assignee.id,
+                    provider_id=integration.id,
+                    provider_ext_id=integration.external_id,
+                    provider_type=integration.provider,
                 )
                 if len(assignee_identities) > 0:
                     assignee_identity = assignee_identities[0]
@@ -399,6 +406,7 @@ class SlackIssuesMessageBuilder(BlockSlackMessageBuilder):
         is_unfurl: bool = False,
         skip_fallback: bool = False,
         notes: str | None = None,
+        integration: RpcIntegration | None = None,
     ) -> None:
         super().__init__()
         self.group = group
@@ -414,6 +422,7 @@ class SlackIssuesMessageBuilder(BlockSlackMessageBuilder):
         self.is_unfurl = is_unfurl
         self.skip_fallback = skip_fallback
         self.notes = notes
+        self.integration = integration
 
     @property
     def escape_text(self) -> bool:
@@ -615,6 +624,7 @@ def build_group_attachment(
     is_unfurl: bool = False,
     notification_uuid: str | None = None,
     notes: str | None = None,
+    integration: RpcIntegration | None = None,
 ) -> Union[SlackBlock, SlackAttachment]:
 
     return SlackIssuesMessageBuilder(
@@ -628,4 +638,5 @@ def build_group_attachment(
         issue_details,
         is_unfurl=is_unfurl,
         notes=notes,
+        integration=integration,
     ).build(notification_uuid=notification_uuid)
