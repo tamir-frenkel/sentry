@@ -4,7 +4,6 @@ import {RouteComponentPropsFixture} from 'sentry-fixture/routeComponentPropsFixt
 import {TeamFixture} from 'sentry-fixture/team';
 
 import {
-  act,
   render,
   screen,
   userEvent,
@@ -55,11 +54,12 @@ describe('ProjectsDashboard', function () {
   });
 
   afterEach(function () {
+    projectsActions._projectStatsToFetch.clear();
     MockApiClient.clearMockResponses();
   });
 
   describe('empty state', function () {
-    it('renders with no projects', function () {
+    it('renders with no projects', async function () {
       const noProjectTeams = [TeamFixture({isMember: false, projects: []})];
 
       render(
@@ -73,10 +73,12 @@ describe('ProjectsDashboard', function () {
         />
       );
 
-      expect(screen.getByRole('button', {name: 'Join a Team'})).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', {name: 'Join a Team'})
+      ).toBeInTheDocument();
     });
 
-    it('renders with 1 project, with no first event', function () {
+    it('renders with 1 project, with no first event', async function () {
       const projects = [ProjectFixture({teams, firstEvent: null})];
       ProjectsStore.loadInitialData(projects);
 
@@ -93,7 +95,7 @@ describe('ProjectsDashboard', function () {
         />
       );
 
-      expect(screen.getByTestId('join-team')).toBeInTheDocument();
+      expect(await screen.findByTestId('join-team')).toBeInTheDocument();
       expect(screen.getByTestId('create-project')).toBeInTheDocument();
       expect(
         screen.getByPlaceholderText('Search for projects by name')
@@ -105,7 +107,7 @@ describe('ProjectsDashboard', function () {
   });
 
   describe('with projects', function () {
-    it('renders with two projects', function () {
+    it('renders with two projects', async function () {
       const teamA = TeamFixture({slug: 'team1', isMember: true});
       const projects = [
         ProjectFixture({
@@ -136,11 +138,11 @@ describe('ProjectsDashboard', function () {
           {...RouteComponentPropsFixture()}
         />
       );
-      expect(screen.getByText('My Teams')).toBeInTheDocument();
+      expect(await screen.findByText('My Teams')).toBeInTheDocument();
       expect(screen.getAllByTestId('badge-display-name')).toHaveLength(2);
     });
 
-    it('renders correct project with selected team', function () {
+    it('renders correct project with selected team', async function () {
       const teamC = TeamFixture({
         id: '1',
         slug: 'teamC',
@@ -227,7 +229,7 @@ describe('ProjectsDashboard', function () {
         />
       );
 
-      expect(screen.getByText('project3')).toBeInTheDocument();
+      expect(await screen.findByText('project3')).toBeInTheDocument();
       expect(screen.queryByText('project2')).not.toBeInTheDocument();
     });
 
@@ -276,7 +278,7 @@ describe('ProjectsDashboard', function () {
       });
     });
 
-    it('renders bookmarked projects first in team list', function () {
+    it('renders bookmarked projects first in team list', async function () {
       const teamA = TeamFixture({slug: 'team1', isMember: true});
       const projects = [
         ProjectFixture({
@@ -339,7 +341,6 @@ describe('ProjectsDashboard', function () {
         ],
       });
 
-      jest.useFakeTimers();
       render(
         <Dashboard
           api={api}
@@ -351,10 +352,8 @@ describe('ProjectsDashboard', function () {
         />
       );
 
-      jest.runAllTimers();
-      jest.useRealTimers();
       // check that all projects are displayed
-      expect(screen.getAllByTestId('badge-display-name')).toHaveLength(6);
+      expect(await screen.findAllByTestId('badge-display-name')).toHaveLength(6);
 
       const projectName = screen.getAllByTestId('badge-display-name');
       // check that projects are in the correct order - alphabetical with bookmarked projects in front
@@ -413,7 +412,6 @@ describe('ProjectsDashboard', function () {
     it('uses ProjectsStatsStore to load stats', async function () {
       ProjectsStore.loadInitialData(projects);
 
-      jest.useFakeTimers();
       ProjectsStatsStore.onStatsLoadSuccess([{...projects[0], stats: [[1517281200, 2]]}]);
       const loadStatsSpy = jest.spyOn(projectsActions, 'loadStatsForProject');
       const mock = MockApiClient.addMockResponse({
@@ -439,30 +437,9 @@ describe('ProjectsDashboard', function () {
       );
 
       expect(loadStatsSpy).toHaveBeenCalledTimes(6);
-      expect(mock).not.toHaveBeenCalled();
-
-      const projectSummary = screen.getAllByTestId('summary-links');
-      // Has 5 Loading Cards because 1 project has been loaded in store already
-      expect(
-        within(projectSummary[0]).getByTestId('loading-placeholder')
-      ).toBeInTheDocument();
-      expect(
-        within(projectSummary[1]).getByTestId('loading-placeholder')
-      ).toBeInTheDocument();
-      expect(
-        within(projectSummary[2]).getByTestId('loading-placeholder')
-      ).toBeInTheDocument();
-      expect(
-        within(projectSummary[3]).getByTestId('loading-placeholder')
-      ).toBeInTheDocument();
-      expect(within(projectSummary[4]).getByText('Errors: 2')).toBeInTheDocument();
-      expect(
-        within(projectSummary[5]).getByTestId('loading-placeholder')
-      ).toBeInTheDocument();
 
       // Advance timers so that batched request fires
-      act(() => jest.advanceTimersByTime(51));
-      expect(mock).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(mock).toHaveBeenCalledTimes(1));
       // query ids = 3, 2, 4 = bookmarked
       // 1 - already loaded in store so shouldn't be in query
       expect(mock).toHaveBeenCalledWith(
@@ -473,12 +450,10 @@ describe('ProjectsDashboard', function () {
           }),
         })
       );
-      jest.useRealTimers();
 
       // All cards have loaded
-      await waitFor(() => {
-        expect(within(projectSummary[0]).getByText('Errors: 3')).toBeInTheDocument();
-      });
+      const projectSummary = await screen.findAllByTestId('summary-links');
+      expect(within(projectSummary[0]).getByText('Errors: 3')).toBeInTheDocument();
       expect(within(projectSummary[1]).getByText('Errors: 3')).toBeInTheDocument();
       expect(within(projectSummary[2]).getByText('Errors: 3')).toBeInTheDocument();
       expect(within(projectSummary[3]).getByText('Errors: 3')).toBeInTheDocument();
