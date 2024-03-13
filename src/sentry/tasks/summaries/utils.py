@@ -3,7 +3,7 @@ from typing import Any, cast
 
 import sentry_sdk
 from django.db.models import Count
-from snuba_sdk import Request
+from snuba_sdk import Join, Relationship, Request
 from snuba_sdk.column import Column
 from snuba_sdk.conditions import Condition, Op
 from snuba_sdk.entity import Entity
@@ -167,15 +167,25 @@ def project_key_errors(
     op = f"{prefix}.project_key_errors"
 
     with sentry_sdk.start_span(op=op):
+        error_entity = Entity("events", alias="events")
+        group_entity = Entity("group_attributes", alias="ga")
         query = Query(
-            match=Entity("events"),
-            select=[Column("group_id"), Function("count", [])],
+            match=Join([Relationship(error_entity, "attributes", group_entity)]),
+            select=[Column("group_id", entity=error_entity), Function("count", [])],
             where=[
-                Condition(Column("timestamp"), Op.GTE, ctx.start),
-                Condition(Column("timestamp"), Op.LT, ctx.end + timedelta(days=1)),
-                Condition(Column("project_id"), Op.EQ, project.id),
+                Condition(Column("timestamp", entity=error_entity), Op.GTE, ctx.start),
+                Condition(
+                    Column("timestamp", entity=error_entity), Op.LT, ctx.end + timedelta(days=1)
+                ),
+                Condition(Column("project_id", entity=error_entity), Op.EQ, project.id),
+                Condition(
+                    Column("group_status", entity=group_entity),
+                    Op.EQ,
+                    GroupStatus.UNRESOLVED,
+                ),
+                Condition(Column("project_id", entity=group_entity), Op.IN, [project.id]),
             ],
-            groupby=[Column("group_id")],
+            groupby=[Column("group_id", entity=error_entity)],
             orderby=[OrderBy(Function("count", []), Direction.DESC)],
             limit=Limit(3),
         )

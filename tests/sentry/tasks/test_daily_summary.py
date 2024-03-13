@@ -131,7 +131,7 @@ class DailySummaryTest(
                 fingerprint="group-2",
                 category=DataCategory.ERROR,
                 release=self.release.version if use_release else None,
-                resolve=False,
+                # resolve=False,
             )
         if regressed_issue:
             self.group2.substatus = GroupSubStatus.REGRESSED
