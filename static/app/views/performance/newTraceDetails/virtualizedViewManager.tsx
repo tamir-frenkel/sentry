@@ -11,6 +11,7 @@ import {lightTheme as theme} from 'sentry/utils/theme';
 import {
   isAutogroupedNode,
   isMissingInstrumentationNode,
+  isNoDataNode,
   isParentAutogroupedNode,
   isSiblingAutogroupedNode,
   isSpanNode,
@@ -378,13 +379,26 @@ export class VirtualizedViewManager {
     this.previousDividerClientVec = [event.clientX, event.clientY];
   }
 
+  private scrollbar_width: number = 0;
+  onScrollbarWidthChange(width: number) {
+    if (width === this.scrollbar_width) {
+      return;
+    }
+    this.scrollbar_width = width;
+    this.draw();
+  }
+
   registerList(list: VirtualizedList | null) {
     this.list = list;
   }
 
   registerIndicatorContainerRef(ref: HTMLElement | null) {
     if (ref) {
-      ref.style.width = this.columns.span_list.width * 100 + '%';
+      const correction =
+        (this.scrollbar_width / this.container_physical_space.width) *
+        this.columns.span_list.width;
+      ref.style.transform = `translateX(${-this.scrollbar_width}px)`;
+      ref.style.width = (this.columns.span_list.width - correction) * 100 + '%';
     }
     this.indicator_container = ref;
   }
@@ -603,7 +617,9 @@ export class VirtualizedViewManager {
 
     const max_distance = Math.max(Math.abs(distance_x), Math.abs(distance_width));
     const p = max_distance !== 0 ? Math.log10(max_distance) - 1 : 1;
-    const duration = 200 + 100 * Math.abs(p * p);
+    // We need to clamp the duration to prevent the animation from being too slow,
+    // sometimes the distances are very large as traces can be hours in duration
+    const duration = clamp(200 + 100 * Math.abs(p * p), 200, 600);
 
     const start = performance.now();
     const rafCallback = (now: number) => {
@@ -1059,6 +1075,7 @@ export class VirtualizedViewManager {
         const nextSegment = segments[segments.length - 1];
         if (
           nextSegment?.startsWith('span:') ||
+          nextSegment?.startsWith('empty:') ||
           nextSegment?.startsWith('ag:') ||
           nextSegment?.startsWith('ms:')
         ) {
@@ -1226,11 +1243,16 @@ export class VirtualizedViewManager {
 
     if (this.divider) {
       this.divider.style.transform = `translateX(${
-        list_width * this.container_physical_space.width - DIVIDER_WIDTH / 2 - 1
+        list_width * (this.container_physical_space.width - this.scrollbar_width) -
+        DIVIDER_WIDTH / 2 -
+        1
       }px)`;
     }
     if (this.indicator_container) {
-      this.indicator_container.style.width = span_list_width * 100 + '%';
+      const correction =
+        (this.scrollbar_width / this.container_physical_space.width) * span_list_width;
+      this.indicator_container.style.transform = `translateX(${-this.scrollbar_width}px)`;
+      this.indicator_container.style.width = (span_list_width - correction) * 100 + '%';
     }
 
     for (let i = 0; i < this.columns.list.column_refs.length; i++) {
@@ -1614,12 +1636,30 @@ export class VirtualizedList {
   }
 }
 
+function maybeToggleScrollbar(
+  container: HTMLElement,
+  containerHeight: number,
+  scrollHeight: number,
+  manager: VirtualizedViewManager
+) {
+  if (scrollHeight > containerHeight) {
+    container.style.overflowY = 'scroll';
+    container.style.scrollbarGutter = 'stable';
+    manager.onScrollbarWidthChange(container.offsetWidth - container.clientWidth);
+  } else {
+    container.style.overflowY = 'auto';
+    container.style.scrollbarGutter = 'auto';
+    manager.onScrollbarWidthChange(0);
+  }
+}
+
 interface UseVirtualizedListProps {
   container: HTMLElement | null;
   items: ReadonlyArray<TraceTreeNode<TraceTree.NodeValue>>;
   manager: VirtualizedViewManager;
   render: (item: VirtualizedRow) => React.ReactNode;
 }
+
 interface UseVirtualizedListResult {
   list: VirtualizedList;
   rendered: React.ReactNode[];
@@ -1697,6 +1737,13 @@ export const useVirtualizedList = (
         list.current.scrollHeight = scrollHeightRef.current;
       }
 
+      maybeToggleScrollbar(
+        elements[0].target as HTMLElement,
+        scrollHeightRef.current,
+        itemsRef.current.length * 24,
+        managerRef.current
+      );
+
       const recomputedItems = findRenderedItems({
         scrollTop: scrollTopRef.current,
         items: itemsRef.current,
@@ -1737,6 +1784,13 @@ export const useVirtualizedList = (
     scrollContainerRef.current!.style.position = 'relative';
     scrollContainerRef.current!.style.willChange = 'transform';
     scrollContainerRef.current!.style.height = `${props.items.length * 24}px`;
+
+    maybeToggleScrollbar(
+      props.container,
+      scrollHeightRef.current,
+      props.items.length * 24,
+      props.manager
+    );
 
     const onScroll = event => {
       if (!list.current) {
@@ -1805,7 +1859,7 @@ export const useVirtualizedList = (
     return () => {
       props.container?.removeEventListener('scroll', onScroll);
     };
-  }, [props.container, props.items, props.items.length]);
+  }, [props.container, props.items, props.items.length, props.manager]);
 
   useLayoutEffect(() => {
     if (!list.current || !styleCache.current || !renderCache.current) {
@@ -1988,6 +2042,10 @@ function findInTreeFromSegment(
 
     if (type === 'error' && isTraceErrorNode(node)) {
       return node.value.event_id === id;
+    }
+
+    if (type === 'empty' && isNoDataNode(node)) {
+      return true;
     }
 
     return false;
