@@ -1,8 +1,10 @@
 import {forwardRef} from 'react';
 import {Link as RouterLink} from 'react-router';
+import {Link as Router6Link} from 'react-router-dom';
 import styled from '@emotion/styled';
 import type {Location, LocationDescriptor} from 'history';
 
+import {USING_REACT_ROUTER_SIX} from 'sentry/constants';
 import {useLocation} from 'sentry/utils/useLocation';
 import {normalizeUrl} from 'sentry/utils/withDomainRequired';
 
@@ -46,6 +48,10 @@ function BaseLink({disabled, to, forwardedRef, ...props}: LinkProps): React.Reac
   to = normalizeUrl(to, location);
 
   if (!disabled && location) {
+    if (USING_REACT_ROUTER_SIX) {
+      return <Router6Link to={to} ref={forwardedRef as any} {...props} />;
+    }
+
     return <RouterLink to={to} ref={forwardedRef as any} {...props} />;
   }
 

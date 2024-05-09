@@ -1,5 +1,7 @@
 import {useCallback, useEffect, useRef} from 'react';
+import {NavigateFunction, Path,useNavigate as useReactRouter6Navigate} from 'react-router-dom';
 
+import {USING_REACT_ROUTER_SIX} from 'sentry/constants';
 import {useRouteContext} from 'sentry/utils/useRouteContext';
 import {normalizeUrl} from 'sentry/utils/withDomainRequired';
 
@@ -15,6 +17,10 @@ type NavigateOptions = {
  * @see https://reactrouter.com/hooks/use-navigate
  */
 export function useNavigate() {
+  if (USING_REACT_ROUTER_SIX) {
+    return useReactRouter6Navigate();
+  }
+
   const route = useRouteContext();
 
   const navigator = route.router;
@@ -22,8 +28,8 @@ export function useNavigate() {
   useEffect(() => {
     hasMountedRef.current = true;
   });
-  const navigate = useCallback(
-    (to: string | number, options: NavigateOptions = {}) => {
+  const navigate: NavigateFunction = useCallback(
+    (to: string | number | Partial<Path>, options: NavigateOptions = {}) => {
       if (!hasMountedRef.current) {
         throw new Error(
           `You should call navigate() in a React.useEffect(), not when your component is first rendered.`
@@ -39,10 +45,10 @@ export function useNavigate() {
       };
 
       if (options.replace) {
-        return navigator.replace(nextState);
+        return navigator.replace(nextState as any);
       }
 
-      return navigator.push(nextState);
+      return navigator.push(nextState as any);
     },
     [navigator]
   );
