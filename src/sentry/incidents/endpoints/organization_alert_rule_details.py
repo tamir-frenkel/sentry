@@ -321,6 +321,9 @@ class OrganizationAlertRuleDetailsEndpoint(OrganizationAlertRuleEndpoint):
             except Exception:
                 pass
 
+            if not project:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
             if not request.access.has_project_access(project):
                 return Response(status=status.HTTP_403_FORBIDDEN)
 
