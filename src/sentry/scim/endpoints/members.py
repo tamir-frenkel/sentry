@@ -580,7 +580,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
             result = serializer.validated_data
             with transaction.atomic(router.db_for_write(OrganizationMember)):
                 member_query = OrganizationMember.objects.filter(
-                    organization=organization, email=result["email"], role=result["role"]
+                    organization=organization, email=result["email"]
                 )
 
                 if member_query.exists():
