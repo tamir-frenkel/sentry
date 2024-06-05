@@ -163,6 +163,28 @@ class SpansMetricsDatasetConfig(DatasetConfig):
                     default_result_type="duration",
                 ),
                 fields.MetricsFunction(
+                    "sum_if",
+                    required_args=[
+                        fields.MetricArg(
+                            "column",
+                            allowed_columns=constants.SPAN_METRIC_DURATION_COLUMNS
+                            | constants.SPAN_METRIC_COUNT_COLUMNS,
+                        ),
+                        fields.MetricArg(
+                            "if_col",
+                            allowed_columns=["release", "span.op"],
+                        ),
+                        fields.SnQLStringArg(
+                            "if_val", unquote=True, unescape_quotes=True, optional_unquote=True
+                        ),
+                    ],
+                    calculated_args=[resolve_metric_id],
+                    snql_gauge=self._resolve_sum_if,
+                    snql_distribution=self._resolve_sum_if,
+                    result_type_fn=self.reflective_result_type(),
+                    default_result_type="duration",
+                ),
+                fields.MetricsFunction(
                     "avg",
                     optional_args=[
                         fields.with_default(
@@ -1135,6 +1157,31 @@ class SpansMetricsDatasetConfig(DatasetConfig):
                     self.builder.resolve_tag_value(args["op"]),
                 ],
             ),
+            alias,
+        )
+
+    def _resolve_sum_if(self, args, alias):
+        return Function(
+            "sumIf",
+            [
+                Column("value"),
+                Function(
+                    "and",
+                    [
+                        Function(
+                            "equals",
+                            [
+                                Column("metric_id"),
+                                args["metric_id"],
+                            ],
+                        ),
+                        Function(
+                            "equals",
+                            [self.builder.column(args["if_col"]), args["if_val"]],
+                        ),
+                    ],
+                ),
+            ],
             alias,
         )
 

@@ -1610,6 +1610,41 @@ class OrganizationEventsMetricsEnhancedPerformanceEndpointTest(MetricsEnhancedPe
             }
         ]
 
+    def test_frame_delay_sum(self):
+        self.store_span_metric(
+            0.001,
+            internal_metric=constants.SPAN_METRICS_MAP["mobile.frames_delay"],
+            timestamp=self.min_ago,
+            tags={"release": "1.0.0"},
+        )
+        self.store_span_metric(
+            0.002,
+            internal_metric=constants.SPAN_METRICS_MAP["mobile.frames_delay"],
+            timestamp=self.min_ago,
+            tags={"release": "1.0.0"},
+        )
+
+        field = "sum_if(mobile.frames_delay,release,1.0.0)"
+        response = self.do_request(
+            {
+                "field": [
+                    field,
+                ],
+                "query": "",
+                "project": self.project.id,
+                "dataset": "spansMetrics",
+                "statsPeriod": "1h",
+            }
+        )
+
+        assert response.status_code == 200, response.content
+        data = response.data["data"]
+        assert data == [
+            {
+                field: 0.003,
+            }
+        ]
+
     def test_resolve_messaging_message_receive_latency_gauge(self):
         self.store_span_metric(
             {

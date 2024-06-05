@@ -344,7 +344,7 @@ SPAN_METRICS_MAP = {
     "mobile.slow_frames": "g:spans/mobile.slow_frames@none",
     "mobile.frozen_frames": "g:spans/mobile.frozen_frames@none",
     "mobile.total_frames": "g:spans/mobile.total_frames@none",
-    "mobile.frames_delay": "g:spans/mobile.frames_delay@second",
+    "mobile.frames_delay": "d:spans/mobile.frames_delay@second",
     "messaging.message.receive.latency": SPAN_MESSAGING_LATENCY,
 }
 PROFILE_METRICS_MAP = {
