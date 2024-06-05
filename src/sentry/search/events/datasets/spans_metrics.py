@@ -163,6 +163,28 @@ class SpansMetricsDatasetConfig(DatasetConfig):
                     default_result_type="duration",
                 ),
                 fields.MetricsFunction(
+                    "duration_ratio",
+                    required_args=[
+                        fields.MetricArg(
+                            "column", allowed_columns=constants.SPAN_METRIC_DURATION_COLUMNS
+                        ),
+                        fields.MetricArg(
+                            "column_second", allowed_columns=constants.SPAN_METRIC_DURATION_COLUMNS
+                        ),
+                        fields.MetricArg(
+                            "if_col",
+                            allowed_columns=["release", "span.op"],
+                        ),
+                        fields.SnQLStringArg(
+                            "if_val", unquote=True, unescape_quotes=True, optional_unquote=True
+                        ),
+                    ],
+                    calculated_args=[resolve_metric_id],
+                    snql_gauge=self._resolve_duration_ratio,
+                    snql_distribution=self._resolve_duration_ratio,
+                    default_result_type="percentage",
+                ),
+                fields.MetricsFunction(
                     "avg",
                     optional_args=[
                         fields.with_default(
@@ -1175,6 +1197,65 @@ class SpansMetricsDatasetConfig(DatasetConfig):
 
     def _resolve_avg_compare(self, args, alias):
         return function_aliases.resolve_avg_compare(self.builder.column, args, alias)
+
+    def _resolve_duration_ratio(self, args, alias):
+        frames_delay = Function(
+            "multiply",
+            [
+                Function(
+                    "sumIf",
+                    [
+                        Column("value"),
+                        Function(
+                            "and",
+                            [
+                                Function(
+                                    "equals",
+                                    [
+                                        Column("metric_id"),
+                                        args["metric_id"],
+                                    ],
+                                ),
+                                Function(
+                                    "equals",
+                                    [self.builder.column(args["if_col"]), args["if_val"]],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                1000,
+            ],
+        )
+
+        span_duration = Function(
+            "sumIf",
+            [
+                self.resolve_metric("span.duration"),
+                Function(
+                    "and",
+                    [
+                        Function(
+                            "equals",
+                            [
+                                Column("metric_id"),
+                                args["metric_id"],
+                            ],
+                        ),
+                        Function(
+                            "equals",
+                            [self.builder.column(args["if_col"]), args["if_val"]],
+                        ),
+                    ],
+                ),
+            ],
+        )
+
+        return Function(
+            "divide",
+            [frames_delay, span_duration],
+            alias,
+        )
 
     def _resolve_trace_status_count(
         self,
