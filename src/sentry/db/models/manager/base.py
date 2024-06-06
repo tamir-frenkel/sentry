@@ -6,7 +6,7 @@ import weakref
 from collections.abc import Callable, Collection, Generator, Mapping, MutableMapping, Sequence
 from contextlib import contextmanager
 from enum import IntEnum, auto
-from typing import Any, Generic
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.db import models, router
@@ -69,7 +69,15 @@ def make_key(model: Any, prefix: str, kwargs: Mapping[str, Model | int | str]) -
     return f"{prefix}:{model.__name__}:{md5_text(kwargs_bits_str).hexdigest()}"
 
 
-class BaseManager(DjangoBaseManager.from_queryset(BaseQuerySet), Generic[M]):  # type: ignore[misc]
+if TYPE_CHECKING:
+    from django.db.models.manager import Manager
+
+    _base_manager_base = Manager[M]
+else:
+    _base_manager_base = DjangoBaseManager.from_queryset(BaseQuerySet)
+
+
+class BaseManager(_base_manager_base[M]):
     lookup_handlers = {"iexact": lambda x: x.upper()}
     use_for_related_fields = True
 
