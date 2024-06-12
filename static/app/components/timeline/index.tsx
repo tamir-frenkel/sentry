@@ -1,8 +1,10 @@
+import {useMemo} from 'react';
 import styled from '@emotion/styled';
 
 import {getFormattedTimestamp} from 'sentry/components/events/interfaces/breadcrumbs/breadcrumb/time/utils';
 import {Tooltip} from 'sentry/components/tooltip';
 import {space} from 'sentry/styles/space';
+import {defined} from 'sentry/utils';
 
 export interface ItemProps {
   icon: React.ReactNode;
@@ -11,16 +13,27 @@ export interface ItemProps {
   children?: React.ReactNode;
   color?: string;
   description?: string;
-  rootTime?: string;
+  startTimestamp?: string;
 }
 
-export function Item({title, children, icon, color = 'gray200', timestamp}: ItemProps) {
-  const now = new Date();
+export function Item({
+  title,
+  children,
+  icon,
+  color = 'gray200',
+  timestamp,
+  startTimestamp,
+}: ItemProps) {
+  const hasRelativeTime = defined(startTimestamp);
+  const placeholderTime = useMemo(() => new Date().toTimeString(), []);
+
   const {
     displayTime,
     date,
     timeWithMilliseconds: preciseTime,
-  } = getFormattedTimestamp(timestamp, now.toTimeString());
+  } = hasRelativeTime
+    ? getFormattedTimestamp(timestamp, startTimestamp, true)
+    : getFormattedTimestamp(timestamp, placeholderTime);
 
   return (
     <Row>
@@ -32,7 +45,7 @@ export function Item({title, children, icon, color = 'gray200', timestamp}: Item
         <Tooltip title={`${preciseTime} - ${date}`}>{displayTime}</Tooltip>
       </Timestamp>
       <Line />
-      <Data>{children}</Data>
+      <Content>{children}</Content>
     </Row>
   );
 }
@@ -81,6 +94,9 @@ const Title = styled('p')<{color: string}>`
 const Timestamp = styled('p')`
   margin: 0;
   color: ${p => p.theme.subText};
+  span {
+    text-decoration: underline dashed ${p => p.theme.subText};
+  }
 `;
 
 const Line = styled('div')`
@@ -91,10 +107,9 @@ const Line = styled('div')`
   border-left: 1px solid ${p => p.theme.border};
 `;
 
-const Data = styled('div')`
+const Content = styled('div')`
   border-radius: ${space(0.5)};
-  background: ${p => p.theme.backgroundSecondary};
-  margin: 0 0 ${space(2)} -${space(0.75)};
-  padding: ${space(0.75)};
+  margin: ${space(0.5)} 0 ${space(2)};
   grid-column: span 2;
+  color: ${p => p.theme.subText};
 `;

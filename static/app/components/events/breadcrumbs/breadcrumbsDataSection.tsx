@@ -28,7 +28,7 @@ export default function BreadcrumbsDataSection({event}: BreadcrumbsDataSectionPr
       data-test-id="breadcrumbs-data-section"
     >
       <ErrorBoundary mini message={t('There was an error loading the event breadcrumbs')}>
-        <BreadcrumbsTimeline breadcrumbs={breadcrumbs} />
+        <BreadcrumbsTimeline breadcrumbs={breadcrumbs} event={event} />
       </ErrorBoundary>
     </EventDataSection>
   );

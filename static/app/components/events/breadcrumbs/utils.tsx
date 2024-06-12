@@ -1,3 +1,4 @@
+import {getVirtualCrumb} from 'sentry/components/events/interfaces/breadcrumbs/utils';
 import * as Timeline from 'sentry/components/timeline';
 import {
   IconFire,
@@ -14,29 +15,59 @@ import {
   IconWarning,
 } from 'sentry/icons';
 import {t} from 'sentry/locale';
+import type {Event} from 'sentry/types';
 import {BreadcrumbType, type RawCrumb} from 'sentry/types/breadcrumbs';
+import {defined} from 'sentry/utils';
+import {toTitleCase} from 'sentry/utils/string/toTitleCase';
 
 const BREADCRUMB_TIMESTAMP_PLACEHOLDER = '--';
 const BREADCRUMB_TITLE_PLACEHOLDER = t('Generic');
 
 export function convertBreadcrumbsToTimelineItems(
-  breadcrumbs: RawCrumb[]
+  breadcrumbs: RawCrumb[],
+  event: Event
 ): React.ReactNode[] {
-  const results = breadcrumbs.map((bc, i) => {
+  const virtualCrumb = getVirtualCrumb(event);
+  const timelineCrumbs = [...breadcrumbs];
+  if (virtualCrumb) {
+    timelineCrumbs.push(virtualCrumb);
+  }
+  const startTimestamp = timelineCrumbs[timelineCrumbs.length - 1].timestamp;
+  const results = timelineCrumbs.map((bc, i) => {
     return (
       <Timeline.Item
         key={i}
-        title={bc.category ?? BREADCRUMB_TITLE_PLACEHOLDER}
-        icon={getIconFromBreadcrumbType(bc.type)}
+        title={getTitleFromBreadcrumbCategory(bc.category)}
         color={getColorFromBreadcrumbType(bc.type)}
+        icon={getIconFromBreadcrumbType(bc.type)}
         description={bc.message}
         timestamp={bc.timestamp ?? BREADCRUMB_TIMESTAMP_PLACEHOLDER}
+        startTimestamp={startTimestamp}
       >
-        {JSON.stringify(bc.data)}
+        {defined(bc.data) && JSON.stringify(bc.data)}
       </Timeline.Item>
     );
   });
   return results;
+}
+
+export function getTitleFromBreadcrumbCategory(category: RawCrumb['category']) {
+  switch (category) {
+    case 'http':
+      return t('HTTP');
+    case 'httplib':
+      return t('httplib');
+    case 'ui.click':
+      return t('UI Click');
+    case 'ui.input':
+      return t('UI Input');
+    case null:
+    case undefined:
+      return BREADCRUMB_TITLE_PLACEHOLDER;
+    default:
+      const titleCategory = category.split('.').join(' ');
+      return toTitleCase(titleCategory);
+  }
 }
 
 export function getColorFromBreadcrumbType(type?: BreadcrumbType): string {
