@@ -6,12 +6,18 @@ import {Tooltip} from 'sentry/components/tooltip';
 import {space} from 'sentry/styles/space';
 import {defined} from 'sentry/utils';
 
+export interface ColorConfig {
+  primary: string;
+  secondary: string;
+}
+
 export interface ItemProps {
   icon: React.ReactNode;
+  isActive: boolean;
   timestamp: string;
   title: string;
   children?: React.ReactNode;
-  color?: string;
+  colorConfig?: ColorConfig;
   startTimestamp?: string;
 }
 
@@ -19,9 +25,10 @@ export function Item({
   title,
   children,
   icon,
-  color = 'gray200',
+  colorConfig = {primary: 'gray300', secondary: 'gray200'},
   timestamp,
   startTimestamp,
+  isActive,
 }: ItemProps) {
   const hasRelativeTime = defined(startTimestamp);
   const placeholderTime = useMemo(() => new Date().toTimeString(), []);
@@ -35,11 +42,11 @@ export function Item({
     : getFormattedTimestamp(timestamp, placeholderTime);
 
   return (
-    <Row>
-      <IconWrapper color={color} isSelected={false}>
+    <Row color={colorConfig.secondary} hasLowerBorder={isActive ?? false}>
+      <IconWrapper colorConfig={colorConfig} hasIconBorder={isActive ?? false}>
         {icon}
       </IconWrapper>
-      <Title color={color}>{title}</Title>
+      <Title color={colorConfig.primary}>{title}</Title>
       <Timestamp>
         <Tooltip title={`${preciseTime} - ${date}`}>{displayTime}</Tooltip>
       </Timestamp>
@@ -57,25 +64,48 @@ export function Group({children}: GroupProps) {
   return <GroupWrapper>{children}</GroupWrapper>;
 }
 
-const GroupWrapper = styled('div')``;
+const GroupWrapper = styled('div')`
+  position: relative;
+  /* vertical line connecting items */
+  &::after {
+    content: '';
+    position: absolute;
+    left: 10.5px;
+    width: 1px;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    background: ${p => p.theme.border};
+  }
+`;
 
-const Row = styled('div')`
+const Row = styled('div')<{color: string; hasLowerBorder: boolean}>`
+  position: relative;
   color: ${p => p.theme.subText};
   display: grid;
   align-items: center;
   grid-template: auto auto / 22px 1fr auto;
   grid-column-gap: ${space(1)};
-  &:last-child > :last-child {
+  border-bottom: 1px solid ${p => (p.hasLowerBorder ? p.theme[p.color] : 'transparent')};
+  z-index: 10;
+  margin: ${space(1)} 0;
+  &:first-child {
+    margin-top: 0;
+  }
+  &:last-child {
     margin-bottom: 0;
   }
 `;
 
-const IconWrapper = styled('div')<{color: string; isSelected: boolean}>`
+const IconWrapper = styled('div')<{colorConfig: ColorConfig; hasIconBorder: boolean}>`
   grid-column: span 1;
   border-radius: 100%;
   border: 1px solid;
-  border-color: ${p => (p.isSelected ? p.theme[p.color] : 'transparent')};
-  color: ${p => p.theme[p.color]};
+  z-index: 10;
+  border-color: ${p =>
+    p.hasIconBorder ? p.theme[p.colorConfig.secondary] : 'transparent'};
+  color: ${p => p.theme[p.colorConfig.primary]};
+  background: ${p => p.theme.background};
   svg {
     display: block;
     margin: ${space(0.5)};
@@ -107,9 +137,9 @@ const Line = styled('div')`
 `;
 
 const Content = styled('div')`
-  margin: ${space(0.25)} 0 ${space(2)};
   grid-column: span 2;
   color: ${p => p.theme.subText};
+  margin: ${space(0.25)} 0 ${space(2)};
 `;
 
 export const Text = styled('div')`

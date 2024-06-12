@@ -1,8 +1,8 @@
 import {
   BREADCRUMB_TIMESTAMP_PLACEHOLDER,
-  getColorFromBreadcrumbType,
-  getIconFromBreadcrumb,
-  getTitleFromBreadcrumbCategory,
+  getBreadcrumbColorConfig,
+  getBreadcrumbIcon,
+  getBreadcrumbTitle,
 } from 'sentry/components/events/breadcrumbs/utils';
 import {
   convertCrumbType,
@@ -33,14 +33,16 @@ export default function BreadcrumbsTimeline({
   const items = timelineCrumbs.map((breadcrumb, i) => {
     const bc = convertCrumbType(breadcrumb);
     const bcMeta = meta[i];
+    const isVirtualCrumb = virtualCrumb && i === timelineCrumbs.length - 1;
     return (
       <Timeline.Item
         key={i}
-        title={getTitleFromBreadcrumbCategory(bc.category)}
-        color={getColorFromBreadcrumbType(bc.type)}
-        icon={getIconFromBreadcrumb(bc.type)}
+        title={getBreadcrumbTitle(bc.category)}
+        colorConfig={getBreadcrumbColorConfig(bc.type)}
+        icon={getBreadcrumbIcon(bc.type)}
         timestamp={bc.timestamp ?? BREADCRUMB_TIMESTAMP_PLACEHOLDER}
         startTimestamp={startTimestamp}
+        isActive={isVirtualCrumb ?? false}
       >
         {defined(bc.message) && (
           <Timeline.Text>
@@ -50,6 +52,7 @@ export default function BreadcrumbsTimeline({
               maxDefaultDepth={1}
               meta={bcMeta?.message}
               withAnnotatedText
+              withOnlyFormattedText
             />
           </Timeline.Text>
         )}
@@ -61,6 +64,7 @@ export default function BreadcrumbsTimeline({
               maxDefaultDepth={1}
               meta={bcMeta?.data}
               withAnnotatedText
+              withOnlyFormattedText
             />
           </Timeline.Data>
         )}

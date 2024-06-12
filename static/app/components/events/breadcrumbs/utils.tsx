@@ -1,3 +1,4 @@
+import type * as Timeline from 'sentry/components/timeline';
 import {
   IconFire,
   IconFix,
@@ -19,7 +20,7 @@ import {toTitleCase} from 'sentry/utils/string/toTitleCase';
 export const BREADCRUMB_TIMESTAMP_PLACEHOLDER = '--';
 const BREADCRUMB_TITLE_PLACEHOLDER = t('Generic');
 
-export function getTitleFromBreadcrumbCategory(category: RawCrumb['category']) {
+export function getBreadcrumbTitle(category: RawCrumb['category']) {
   switch (category) {
     case 'http':
       return t('HTTP');
@@ -38,32 +39,32 @@ export function getTitleFromBreadcrumbCategory(category: RawCrumb['category']) {
   }
 }
 
-export function getColorFromBreadcrumbType(type?: BreadcrumbType): string {
+export function getBreadcrumbColorConfig(type?: BreadcrumbType): Timeline.ColorConfig {
   switch (type) {
     case BreadcrumbType.ERROR:
-      return 'red400';
+      return {primary: 'red400', secondary: 'red200'};
     case BreadcrumbType.WARNING:
-      return 'yellow400';
+      return {primary: 'yellow400', secondary: 'yellow200'};
     case BreadcrumbType.NAVIGATION:
     case BreadcrumbType.HTTP:
-      return 'green400';
+      return {primary: 'green400', secondary: 'green200'};
     case BreadcrumbType.INFO:
     case BreadcrumbType.QUERY:
-      return 'blue400';
+      return {primary: 'blue400', secondary: 'blue200'};
     case BreadcrumbType.USER:
     case BreadcrumbType.UI:
     case BreadcrumbType.DEBUG:
-      return 'purple400';
+      return {primary: 'purple400', secondary: 'purple200'};
     case BreadcrumbType.SYSTEM:
     case BreadcrumbType.SESSION:
     case BreadcrumbType.TRANSACTION:
-      return 'pink400';
+      return {primary: 'pink400', secondary: 'pink200'};
     default:
-      return 'gray300';
+      return {primary: 'gray300', secondary: 'gray200'};
   }
 }
 
-export function getIconFromBreadcrumb(type?: BreadcrumbType): React.ReactNode {
+export function getBreadcrumbIcon(type?: BreadcrumbType): React.ReactNode {
   switch (type) {
     case BreadcrumbType.USER:
     case BreadcrumbType.UI:
