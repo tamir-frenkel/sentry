@@ -1,5 +1,6 @@
 import type * as Timeline from 'sentry/components/timeline';
 import {
+  IconCursorArrow,
   IconFire,
   IconFix,
   IconInfo,
@@ -50,9 +51,9 @@ export function getBreadcrumbColorConfig(type?: BreadcrumbType): Timeline.ColorC
       return {primary: 'green400', secondary: 'green200'};
     case BreadcrumbType.INFO:
     case BreadcrumbType.QUERY:
+    case BreadcrumbType.UI:
       return {primary: 'blue400', secondary: 'blue200'};
     case BreadcrumbType.USER:
-    case BreadcrumbType.UI:
     case BreadcrumbType.DEBUG:
       return {primary: 'purple400', secondary: 'purple200'};
     case BreadcrumbType.SYSTEM:
@@ -67,8 +68,9 @@ export function getBreadcrumbColorConfig(type?: BreadcrumbType): Timeline.ColorC
 export function getBreadcrumbIcon(type?: BreadcrumbType): React.ReactNode {
   switch (type) {
     case BreadcrumbType.USER:
-    case BreadcrumbType.UI:
       return <IconUser size="xs" />;
+    case BreadcrumbType.UI:
+      return <IconCursorArrow size="xs" />;
     case BreadcrumbType.NAVIGATION:
       return <IconLocation size="xs" />;
     case BreadcrumbType.DEBUG:
