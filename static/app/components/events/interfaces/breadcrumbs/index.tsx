@@ -192,7 +192,7 @@ function BreadcrumbsContainer({data, event, organization, hideTitle = false}: Pr
   }
 
   function applySelectedFilters(
-    breadcrumbs: BreadcrumbWithMeta[],
+    breadcrumbs: eta[],
     selectedFilterOptions: SelectOption<string>[]
   ) {
     const checkedTypeOptions = new Set(

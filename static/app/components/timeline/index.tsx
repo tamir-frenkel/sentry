@@ -12,7 +12,6 @@ export interface ItemProps {
   title: string;
   children?: React.ReactNode;
   color?: string;
-  description?: string;
   startTimestamp?: string;
 }
 
@@ -108,8 +107,27 @@ const Line = styled('div')`
 `;
 
 const Content = styled('div')`
-  border-radius: ${space(0.5)};
-  margin: ${space(0.5)} 0 ${space(2)};
+  margin: ${space(0.25)} 0 ${space(2)};
   grid-column: span 2;
   color: ${p => p.theme.subText};
+`;
+
+export const Text = styled('div')`
+  &:only-child {
+    margin-top: 0;
+  }
+`;
+
+export const Data = styled('div')`
+  border-radius: ${space(0.5)};
+  padding: ${space(0.25)} ${space(0.75)};
+  border: 1px solid ${p => p.theme.translucentInnerBorder};
+  margin: ${space(0.75)} 0 0 -${space(0.75)};
+  font-family: ${p => p.theme.text.familyMono};
+  font-size: ${p => p.theme.fontSizeSmall};
+  background: ${p => p.theme.backgroundSecondary};
+  position: relative;
+  &:only-child {
+    margin-top: 0;
+  }
 `;
