@@ -88,8 +88,8 @@ export default function BreadcrumbsDataSection({event}: BreadcrumbsDataSectionPr
             icon={<IconSort size="xs" />}
             {...props}
           >
-            {[]?.length
-              ? tn('%s Active Filter', '%s Active Filters', [].length)
+            {filterSet.size
+              ? tn('%s Active Filter', '%s Active Filters', filterSet.size)
               : t('Filter')}
           </DropdownButton>
         )}
