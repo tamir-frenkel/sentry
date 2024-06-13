@@ -1,3 +1,6 @@
+import styled from '@emotion/styled';
+
+import type {SelectOption} from 'sentry/components/compactSelect';
 import type * as Timeline from 'sentry/components/timeline';
 import {
   IconCursorArrow,
@@ -20,6 +23,39 @@ import {toTitleCase} from 'sentry/utils/string/toTitleCase';
 
 export const BREADCRUMB_TIMESTAMP_PLACEHOLDER = '--';
 const BREADCRUMB_TITLE_PLACEHOLDER = t('Generic');
+
+export enum BreadcrumbTimeDisplay {
+  RELATIVE = 'relative',
+  ABSOLUTE = 'absolute',
+}
+export const BREADCRUMB_TIME_DISPLAY_OPTIONS = [
+  {label: t('Relative'), value: BreadcrumbTimeDisplay.RELATIVE},
+  {label: t('Absolute'), value: BreadcrumbTimeDisplay.ABSOLUTE},
+];
+export const BREADCRUMB_TIME_DISPLAY_LOCALSTORAGE_KEY = 'event-breadcrumb-time-display';
+
+const Color = styled('span')<{colorConfig: Timeline.ColorConfig}>`
+  color: ${p => p.theme[p.colorConfig.primary]};
+`;
+
+export function getBreadcrumbFilters(crumbs: RawCrumb[]) {
+  const uniqueCrumbTypes = crumbs.reduce((crumbTypeSet, crumb) => {
+    crumbTypeSet.add(crumb.type);
+    return crumbTypeSet;
+  }, new Set<BreadcrumbType>());
+
+  const filters: SelectOption<string>[] = [...uniqueCrumbTypes].map(crumbType => ({
+    value: crumbType,
+    leadingItems: (
+      <Color colorConfig={getBreadcrumbColorConfig(crumbType)}>
+        {getBreadcrumbIcon(crumbType)}
+      </Color>
+    ),
+    label: toTitleCase(crumbType),
+  }));
+
+  return filters;
+}
 
 export function getBreadcrumbTitle(category: RawCrumb['category']) {
   switch (category) {

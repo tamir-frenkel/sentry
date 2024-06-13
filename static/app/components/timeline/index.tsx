@@ -67,14 +67,13 @@ export function Group({children}: GroupProps) {
 const GroupWrapper = styled('div')`
   position: relative;
   /* vertical line connecting items */
-  &::after {
+  &::before {
     content: '';
     position: absolute;
     left: 10.5px;
     width: 1px;
     top: 0;
     bottom: 0;
-    z-index: 1;
     background: ${p => p.theme.border};
   }
 `;
@@ -87,7 +86,6 @@ const Row = styled('div')<{color: string; hasLowerBorder: boolean}>`
   grid-template: auto auto / 22px 1fr auto;
   grid-column-gap: ${space(1)};
   border-bottom: 1px solid ${p => (p.hasLowerBorder ? p.theme[p.color] : 'transparent')};
-  z-index: 10;
   margin: ${space(1)} 0;
   &:first-child {
     margin-top: 0;
@@ -101,7 +99,6 @@ const IconWrapper = styled('div')<{colorConfig: ColorConfig; hasIconBorder: bool
   grid-column: span 1;
   border-radius: 100%;
   border: 1px solid;
-  z-index: 10;
   border-color: ${p =>
     p.hasIconBorder ? p.theme[p.colorConfig.secondary] : 'transparent'};
   color: ${p => p.theme[p.colorConfig.primary]};

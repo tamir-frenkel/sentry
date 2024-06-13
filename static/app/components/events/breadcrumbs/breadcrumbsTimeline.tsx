@@ -1,39 +1,39 @@
 import {
   BREADCRUMB_TIMESTAMP_PLACEHOLDER,
+  BreadcrumbTimeDisplay,
   getBreadcrumbColorConfig,
   getBreadcrumbIcon,
   getBreadcrumbTitle,
 } from 'sentry/components/events/breadcrumbs/utils';
-import {
-  convertCrumbType,
-  getVirtualCrumb,
-} from 'sentry/components/events/interfaces/breadcrumbs/utils';
+import {BreadcrumbSort} from 'sentry/components/events/interfaces/breadcrumbs';
+import {convertCrumbType} from 'sentry/components/events/interfaces/breadcrumbs/utils';
 import {StructuredData} from 'sentry/components/structuredEventData';
 import * as Timeline from 'sentry/components/timeline';
-import type {Event} from 'sentry/types';
 import type {RawCrumb} from 'sentry/types/breadcrumbs';
 import {defined} from 'sentry/utils';
 
 interface BreadcrumbsTimelineProps {
   breadcrumbs: RawCrumb[];
-  event: Event;
   meta?: Record<string, any>;
+  sort?: BreadcrumbSort;
+  timeDisplay?: BreadcrumbTimeDisplay;
+  virtualCrumbIndex?: number;
 }
 export default function BreadcrumbsTimeline({
   breadcrumbs,
-  event,
+  virtualCrumbIndex,
+  sort = BreadcrumbSort.NEWEST,
+  timeDisplay = BreadcrumbTimeDisplay.RELATIVE,
   meta = {},
 }: BreadcrumbsTimelineProps) {
-  const virtualCrumb = getVirtualCrumb(event);
-  const timelineCrumbs = [...breadcrumbs];
-  if (virtualCrumb) {
-    timelineCrumbs.push(virtualCrumb);
-  }
-  const startTimestamp = timelineCrumbs[timelineCrumbs.length - 1].timestamp;
-  const items = timelineCrumbs.map((breadcrumb, i) => {
+  const startTimestamp =
+    timeDisplay === BreadcrumbTimeDisplay.RELATIVE
+      ? breadcrumbs[breadcrumbs.length - 1].timestamp
+      : undefined;
+  const items = breadcrumbs.map((breadcrumb, i) => {
     const bc = convertCrumbType(breadcrumb);
     const bcMeta = meta[i];
-    const isVirtualCrumb = virtualCrumb && i === timelineCrumbs.length - 1;
+    const isVirtualCrumb = defined(virtualCrumbIndex) && i === virtualCrumbIndex;
     return (
       <Timeline.Item
         key={i}
@@ -42,6 +42,7 @@ export default function BreadcrumbsTimeline({
         icon={getBreadcrumbIcon(bc.type)}
         timestamp={bc.timestamp ?? BREADCRUMB_TIMESTAMP_PLACEHOLDER}
         startTimestamp={startTimestamp}
+        // XXX: Only the virtual crumb can be marked as active for breadcrumbs
         isActive={isVirtualCrumb ?? false}
       >
         {defined(bc.message) && (
@@ -72,5 +73,9 @@ export default function BreadcrumbsTimeline({
     );
   });
 
-  return <Timeline.Group>{items}</Timeline.Group>;
+  return (
+    <Timeline.Group>
+      {sort === BreadcrumbSort.NEWEST ? items.reverse() : items}
+    </Timeline.Group>
+  );
 }
