@@ -2,14 +2,16 @@ import {useMemo} from 'react';
 import styled from '@emotion/styled';
 
 import {getInterval} from 'sentry/components/charts/utils';
+import {CHART_PALETTE} from 'sentry/constants/chartPalette';
 import {t} from 'sentry/locale';
-import {formatAbbreviatedNumber} from 'sentry/utils/formatters';
+import type {Series} from 'sentry/types/echarts';
+import {RateUnit} from 'sentry/utils/discover/fields';
+import {formatRate} from 'sentry/utils/formatters';
 import {decodeList} from 'sentry/utils/queryString';
 import {MutableSearch} from 'sentry/utils/tokenizeSearch';
 import {useLocation} from 'sentry/utils/useLocation';
 import usePageFilters from 'sentry/utils/usePageFilters';
 import {CHART_HEIGHT} from 'sentry/views/performance/database/settings';
-import {COUNT_COLOR} from 'sentry/views/starfish/colors';
 import Chart, {ChartType} from 'sentry/views/starfish/components/chart';
 import ChartPanel from 'sentry/views/starfish/components/chartPanel';
 import {useSpanIndexedSeries} from 'sentry/views/starfish/queries/useDiscoverSeries';
@@ -20,33 +22,72 @@ interface Props {}
 
 export function TracesChart({}: Props) {
   const location = useLocation();
-  const pageFilters = usePageFilters();
 
   const queries = useMemo(() => {
     return decodeList(location.query.query);
   }, [location.query.query]);
 
-  const spanIndexedCountSeries = useSpanIndexedSeries(
-    {
-      search: new MutableSearch(
-        queries
-          .filter(Boolean)
-          .map(q => `(${q})`)
-          .join(' OR ')
-      ),
-      yAxis: ['count()'],
-      interval: getInterval(pageFilters.selection.datetime, 'metrics'),
-    },
-    'testing.test'
+  const enabled = useMemo(
+    () => [
+      true, // always visualize the first series
+      Boolean(queries?.[1]?.trim()),
+      Boolean(queries?.[2]?.trim()),
+    ],
+    [queries]
   );
 
-  const seriesData = spanIndexedCountSeries.data?.['count()'];
-  seriesData.z = 1; // TODO:: This shouldn't be required, but we're putting this in for now to avoid split lines being shown on top of the chart data :).
+  const firstCountSeries = useTraceCountSeries({
+    query: queries?.[0] || '',
+    enabled: enabled[0],
+  });
+  const secondCountSeries = useTraceCountSeries({
+    query: queries?.[1],
+    enabled: enabled[1],
+  });
+  const thirdCountSeries = useTraceCountSeries({
+    query: queries?.[2],
+    enabled: enabled[2],
+  });
+
+  const seriesAreLoading =
+    // Disabled queries have `isLoading: true`, but this changes in v5.
+    // To handle this gracefully, we check if the query is enabled + isLoading.
+    //
+    // References
+    // - https://tanstack.com/query/v4/docs/framework/react/guides/disabling-queries
+    // - https://tanstack.com/query/latest/docs/framework/react/guides/disabling-queries#isloading-previously-isinitialloading
+    (enabled[0] && firstCountSeries.isLoading) ||
+    (enabled[1] && secondCountSeries.isLoading) ||
+    (enabled[2] && thirdCountSeries.isLoading);
+
+  const chartData = useMemo<Series[]>(() => {
+    const series = [firstCountSeries.data, secondCountSeries.data, thirdCountSeries.data];
+
+    const allData: Series[] = [];
+
+    for (let i = 0; i < series.length; i++) {
+      if (!enabled[i]) {
+        continue;
+      }
+      const data = series[i]['count()'];
+      data.color = CHART_PALETTE[2][i];
+      data.seriesName = queries[i] || t('All spans');
+      allData.push(data);
+    }
+
+    return allData;
+  }, [
+    enabled,
+    queries,
+    firstCountSeries.data,
+    secondCountSeries.data,
+    thirdCountSeries.data,
+  ]);
 
   return (
     <ChartContainer>
       <ChartPanel
-        title={areQueriesEmpty(queries) ? t('Total Spans') : t('Matching Spans')}
+        title={areQueriesEmpty(queries) ? t('All Spans') : t('All Matching Spans')}
       >
         <Chart
           height={CHART_HEIGHT}
@@ -56,13 +97,14 @@ export function TracesChart({}: Props) {
             top: '8px',
             bottom: '0',
           }}
-          data={[seriesData]}
-          loading={spanIndexedCountSeries.isLoading}
-          chartColors={[COUNT_COLOR]}
-          type={ChartType.AREA}
+          data={chartData}
+          loading={seriesAreLoading}
+          chartColors={CHART_PALETTE[2]}
+          type={ChartType.LINE}
           aggregateOutputFormat="number"
+          showLegend
           tooltipFormatterOptions={{
-            valueFormatter: value => formatAbbreviatedNumber(value),
+            valueFormatter: value => formatRate(value, RateUnit.PER_MINUTE),
           }}
           preserveIncompletePoints
         />
@@ -76,3 +118,24 @@ const ChartContainer = styled('div')`
   gap: 0;
   grid-template-columns: 1fr;
 `;
+
+const useTraceCountSeries = ({
+  enabled,
+  query,
+}: {
+  enabled: boolean;
+  query: string | null;
+}) => {
+  const pageFilters = usePageFilters();
+
+  return useSpanIndexedSeries(
+    {
+      search: new MutableSearch(query ?? ''),
+      yAxis: ['count()'],
+      interval: getInterval(pageFilters.selection.datetime, 'metrics'),
+      overriddenRoute: 'traces-stats',
+      enabled,
+    },
+    'api.trace-explorer.stats'
+  );
+};

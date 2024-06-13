@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import {mergeProps} from '@react-aria/utils';
 import {Item, Section} from '@react-stately/collections';
 import type {ListState} from '@react-stately/list';
-import type {Node} from '@react-types/shared';
+import type {KeyboardEvent, Node} from '@react-types/shared';
 
 import {getEscapedKey} from 'sentry/components/compactSelect/utils';
 import {SearchQueryBuilderCombobox} from 'sentry/components/searchQueryBuilder/combobox';
@@ -23,7 +23,8 @@ import {
 import {t} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
 import type {Tag} from 'sentry/types/group';
-import {getFieldDefinition} from 'sentry/utils/fields';
+import {FieldValueType, getFieldDefinition} from 'sentry/utils/fields';
+import {isCtrlKeyPressed} from 'sentry/utils/isCtrlKeyPressed';
 import {toTitleCase} from 'sentry/utils/string/toTitleCase';
 
 type SearchQueryBuilderInputProps = {
@@ -53,6 +54,27 @@ function getWordAtCursorPosition(value: string, cursorPosition: number) {
   return value;
 }
 
+function getInitialFilterText(key: string) {
+  const fieldDef = getFieldDefinition(key);
+
+  if (!fieldDef) {
+    return `${key}:`;
+  }
+
+  switch (fieldDef.valueType) {
+    case FieldValueType.BOOLEAN:
+      return `${key}:true`;
+    case FieldValueType.INTEGER:
+    case FieldValueType.NUMBER:
+      return `${key}:>100`;
+    case FieldValueType.DATE:
+      return `${key}:-24h`;
+    case FieldValueType.STRING:
+    default:
+      return `${key}:`;
+  }
+}
+
 /**
  * Replaces the focused word (at cursorPosition) with the selected filter key.
  *
@@ -72,7 +94,7 @@ function replaceFocusedWordWithFilter(
     if (characterCount >= cursorPosition) {
       return (
         value.slice(0, characterCount - word.length - 1).trim() +
-        ` ${key}: ` +
+        ` ${getInitialFilterText(key)} ` +
         value.slice(characterCount).trim()
       ).trim();
     }
@@ -88,11 +110,14 @@ function replaceFocusedWordWithFilter(
  * replaceAliasedFilterKeys('foo issue: bar', {'status': 'is'}) => 'foo is: bar'
  */
 function replaceAliasedFilterKeys(value: string, aliasToKeyMap: Record<string, string>) {
-  const key = value.match(/(\w+):/);
+  const key = value.match(/(\S+):/);
   const matchedKey = key?.[1];
   if (matchedKey && aliasToKeyMap[matchedKey]) {
     const actualKey = aliasToKeyMap[matchedKey];
-    const replacedValue = value.replace(`${matchedKey}:`, `${actualKey}:`);
+    const replacedValue = value.replace(
+      `${matchedKey}:`,
+      getInitialFilterText(actualKey)
+    );
     return replacedValue;
   }
 
@@ -110,7 +135,7 @@ function getItemsBySection(filterKeySections: FilterKeySection[]) {
 
         return {
           key: getEscapedKey(tag.key),
-          label: tag.key,
+          label: tag.alias ?? tag.key,
           value: tag.key,
           textValue: tag.key,
           hideCheck: true,
@@ -223,7 +248,11 @@ function SearchQueryBuilderInputInternal({
   }
 
   const onKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+    (e: KeyboardEvent) => {
+      if (e.key === 'a' && isCtrlKeyPressed(e)) {
+        e.continuePropagation();
+      }
+
       // At start and pressing backspace, focus the previous full token
       if (
         e.currentTarget.selectionStart === 0 &&
@@ -378,6 +407,16 @@ const Row = styled('div')`
 
   &:last-child {
     flex-grow: 1;
+  }
+
+  &[aria-selected='true'] {
+    background-color: ${p => p.theme.blue200};
+  }
+
+  input {
+    &::selection {
+      background-color: ${p => p.theme.blue200};
+    }
   }
 `;
 

@@ -54,7 +54,7 @@ const COLUMN_ORDER: Column[] = [
   },
   {
     key: SpanMetricsField.SPAN_DESCRIPTION,
-    name: t('Span Name'),
+    name: t('Span Description'),
     width: COL_WIDTH_UNDEFINED,
   },
   {
@@ -86,24 +86,24 @@ const LIMIT = 12;
 
 type Props = {
   project: Project | undefined;
+  query: string;
   transactionName: string;
 };
 
 export default function SpanMetricsTable(props: Props) {
-  const {project, transactionName} = props;
+  const {project, transactionName, query: search} = props;
   const organization = useOrganization();
   const location = useLocation();
   const sort = useSpansTabTableSort();
 
   const query = useLocationQuery({
     fields: {
-      query: decodeScalar,
       spansCursor: decodeScalar,
       spanOp: decodeScalar,
     },
   });
 
-  const {query: search, spansCursor, spanOp} = query;
+  const {spansCursor, spanOp} = query;
 
   const filters: SpanMetricsQueryFilters = {
     transaction: transactionName,
@@ -183,7 +183,27 @@ function renderBodyCell(
   project?: Project
 ) {
   return function (column: Column, dataRow: DataRow): React.ReactNode {
+    if (column.key === SpanMetricsField.SPAN_OP) {
+      const target = spanDetailsRouteWithQuery({
+        orgSlug: organization.slug,
+        transaction: transactionName,
+        query: location.query,
+        spanSlug: {op: dataRow['span.op'], group: ''},
+        projectID: project?.id,
+      });
+
+      return (
+        <TableCellContainer>
+          <Link to={target}>{dataRow[column.key]}</Link>
+        </TableCellContainer>
+      );
+    }
+
     if (column.key === SpanMetricsField.SPAN_DESCRIPTION) {
+      if (!dataRow['span.group']) {
+        return <TableCellContainer>{'\u2014'}</TableCellContainer>;
+      }
+
       const target = spanDetailsRouteWithQuery({
         orgSlug: organization.slug,
         transaction: transactionName,
@@ -194,7 +214,7 @@ function renderBodyCell(
 
       return (
         <TableCellContainer>
-          <Link to={target}>{dataRow[column.key] || t('(unnamed span)')}</Link>
+          <Link to={target}>{dataRow[column.key]}</Link>
         </TableCellContainer>
       );
     }

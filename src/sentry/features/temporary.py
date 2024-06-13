@@ -119,8 +119,6 @@ def register_temporary_features(manager: FeatureManager):
     manager.add("organizations:grouping-suppress-unnecessary-secondary-hash", OrganizationFeature, FeatureHandlerStrategy.INTERNAL)
     # Enable tweaks to group title in relation to hierarchical grouping.
     manager.add("organizations:grouping-title-ui", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
-    # Enable experimental new version of Merged Issues where sub-hashes are shown
-    manager.add("organizations:grouping-tree-ui", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
     # Allows an org to have a larger set of project ownership rules per project
     manager.add("organizations:higher-ownership-limit", OrganizationFeature, FeatureHandlerStrategy.INTERNAL)
     # Enable increased issue_owners rate limit for auto-assignment
@@ -154,10 +152,6 @@ def register_temporary_features(manager: FeatureManager):
     manager.add("organizations:issue-stream-custom-views", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
     # Enable the updated empty state for issues
     manager.add("organizations:issue-stream-empty-state", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
-    # Enable the new assignee dropdown trigger on issue stream
-    manager.add("organizations:issue-stream-new-assignee-dropdown-trigger", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
-    # Enable new events graph design for issue stream
-    manager.add("organizations:issue-stream-new-events-graph", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
     # Enable issue stream performance improvements
     manager.add("organizations:issue-stream-performance", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
     # Enable the new issue stream search bar UI
@@ -211,9 +205,6 @@ def register_temporary_features(manager: FeatureManager):
     manager.add("organizations:onboarding", OrganizationFeature, FeatureHandlerStrategy.INTERNAL)
     # Enable the SDK selection feature in the onboarding
     manager.add("organizations:onboarding-sdk-selection", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
-    # Prefix host with organization ID when giving users DSNs (can be
-    # customized with SENTRY_ORG_SUBDOMAIN_TEMPLATE) eg. o123.ingest.us.sentry.io
-    manager.add("organizations:org-subdomains", OrganizationFeature, FeatureHandlerStrategy.INTERNAL)
     # Enable views for anomaly detection
     manager.add("organizations:performance-anomaly-detection-ui", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
     # Enable mobile performance score calculation for transactions in relay
@@ -399,14 +390,25 @@ def register_temporary_features(manager: FeatureManager):
     manager.add("organizations:slack-block-kit", OrganizationFeature, FeatureHandlerStrategy.INTERNAL, default=True)
     # Send Slack notifications to threads for Issue Alerts
     manager.add("organizations:slack-thread-issue-alert", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
+    # Enable description field in Slack metric alerts
+    manager.add("organizations:slack-metric-alert-description", OrganizationFeature, FeatureHandlerStrategy.REMOTE)
     # Enable improvements to Slack notifications
     manager.add("organizations:slack-improvements", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
     # Feature flags for migrating to the Slack SDK WebClient
     # SlackNotifyServiceAction
     manager.add("organizations:slack-sdk-issue-alert-action", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
+    # Use new Slack SDK Client for verifying webhook signatures
+    manager.add("organizations:slack-sdk-signature", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
+    # Use new Slack SDK Client for sending activity messages in threads
+    manager.add("organizations:slack-sdk-activity-threads", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
+    # Use new Slack SDK Client for sending metric alerts
+    manager.add("organizations:slack-sdk-metric-alert", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
+    # Use new Slack SDK Client in _notify_recipient
+    manager.add("organizations:slack-sdk-notify-recipient", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
     # Add regression chart as image to slack message
     manager.add("organizations:slack-endpoint-regression-image", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
     manager.add("organizations:slack-function-regression-image", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
+    manager.add("organizations:email-performance-regression-image", OrganizationFeature, FeatureHandlerStrategy.OPTIONS)
     manager.add("organizations:stacktrace-processing-caching", OrganizationFeature, FeatureHandlerStrategy.INTERNAL)
     # Show links and upsells to Insights modules
     manager.add("organizations:insights-entry-points", OrganizationFeature, FeatureHandlerStrategy.INTERNAL)

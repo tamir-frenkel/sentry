@@ -211,7 +211,13 @@ export function SearchQueryBuilderFilter({item, state, token}: SearchQueryTokenP
     if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
       e.stopPropagation();
-      dispatch({type: 'DELETE_TOKEN', token});
+
+      // Only delete if full filter token is focused, otherwise focus it
+      if (ref.current === document.activeElement) {
+        dispatch({type: 'DELETE_TOKEN', token});
+      } else {
+        ref.current?.focus();
+      }
     }
   };
 
@@ -258,6 +264,10 @@ const FilterWrapper = styled('div')`
   :focus {
     background-color: ${p => p.theme.gray100};
     outline: none;
+  }
+
+  &[aria-selected='true'] {
+    background-color: ${p => p.theme.blue200};
   }
 `;
 
