@@ -38,6 +38,16 @@ const Color = styled('span')<{colorConfig: Timeline.ColorConfig}>`
   color: ${p => p.theme[p.colorConfig.primary]};
 `;
 
+export function applyBreadcrumbSearch(search: string, crumbs: RawCrumb[]): RawCrumb[] {
+  return crumbs.filter(
+    c =>
+      c.type.includes(search) ||
+      c.message?.includes(search) ||
+      c.category?.includes(search) ||
+      JSON.stringify(c.data).includes(search)
+  );
+}
+
 export function getBreadcrumbFilters(crumbs: RawCrumb[]) {
   const uniqueCrumbTypes = crumbs.reduce((crumbTypeSet, crumb) => {
     crumbTypeSet.add(crumb.type);

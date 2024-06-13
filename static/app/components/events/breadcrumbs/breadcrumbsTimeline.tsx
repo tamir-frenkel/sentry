@@ -26,6 +26,10 @@ export default function BreadcrumbsTimeline({
   timeDisplay = BreadcrumbTimeDisplay.RELATIVE,
   meta = {},
 }: BreadcrumbsTimelineProps) {
+  if (!breadcrumbs.length) {
+    return null;
+  }
+
   const startTimestamp =
     timeDisplay === BreadcrumbTimeDisplay.RELATIVE
       ? breadcrumbs[breadcrumbs.length - 1].timestamp

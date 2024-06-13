@@ -50,7 +50,7 @@ export function Item({
       <Timestamp>
         <Tooltip title={`${preciseTime} - ${date}`}>{displayTime}</Tooltip>
       </Timestamp>
-      <Line />
+      <Spacer hasLine={isActive ?? false} />
       <Content>{children}</Content>
     </Row>
   );
@@ -92,6 +92,10 @@ const Row = styled('div')<{color: string; hasLowerBorder: boolean}>`
   }
   &:last-child {
     margin-bottom: 0;
+    background: ${p => p.theme.background};
+  }
+  &:last-child > :last-child {
+    margin-bottom: ${p => (p.hasLowerBorder ? space(1) : 0)};
   }
 `;
 
@@ -125,12 +129,13 @@ const Timestamp = styled('p')`
   }
 `;
 
-const Line = styled('div')`
+const Spacer = styled('div')<{hasLine?: boolean}>`
   grid-column: span 1;
   height: 100%;
   width: 0;
   justify-self: center;
-  border-left: 1px solid ${p => p.theme.border};
+  /* This line overlaps with the vertical line rendered from GroupWrapper */
+  border-left: 1px solid ${p => (p.hasLine ? p.theme.border : 'transparent')};
 `;
 
 const Content = styled('div')`
