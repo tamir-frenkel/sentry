@@ -5,19 +5,23 @@ import {getFormattedTimestamp} from 'sentry/components/events/interfaces/breadcr
 import {Tooltip} from 'sentry/components/tooltip';
 import {space} from 'sentry/styles/space';
 import {defined} from 'sentry/utils';
+import type {Color} from 'sentry/utils/theme';
 
 export interface ColorConfig {
-  primary: string;
-  secondary: string;
+  primary: Color;
+  secondary: Color;
 }
 
 export interface ItemProps {
   icon: React.ReactNode;
-  isActive: boolean;
   timestamp: string;
-  title: string;
+  title: React.ReactNode;
   children?: React.ReactNode;
   colorConfig?: ColorConfig;
+  isActive?: boolean;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
+  onMouseEnter?: React.MouseEventHandler<HTMLDivElement>;
+  onMouseLeave?: React.MouseEventHandler<HTMLDivElement>;
   startTimestamp?: string;
 }
 
@@ -25,10 +29,13 @@ export function Item({
   title,
   children,
   icon,
-  colorConfig = {primary: 'gray300', secondary: 'gray200'},
   timestamp,
   startTimestamp,
-  isActive,
+  colorConfig = {primary: 'gray300', secondary: 'gray200'},
+  isActive = false,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
 }: ItemProps) {
   const hasRelativeTime = defined(startTimestamp);
   const placeholderTime = useMemo(() => new Date().toTimeString(), []);
@@ -42,7 +49,13 @@ export function Item({
     : getFormattedTimestamp(timestamp, placeholderTime);
 
   return (
-    <Row color={colorConfig.secondary} hasLowerBorder={isActive ?? false}>
+    <Row
+      color={colorConfig.secondary}
+      hasLowerBorder={isActive ?? false}
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <IconWrapper colorConfig={colorConfig} hasIconBorder={isActive ?? false}>
         {icon}
       </IconWrapper>
@@ -122,7 +135,7 @@ const Title = styled('p')<{color: string}>`
 `;
 
 const Timestamp = styled('p')`
-  margin: 0;
+  margin: 0 ${space(1)};
   color: ${p => p.theme.subText};
   span {
     text-decoration: underline dashed ${p => p.theme.subText};
