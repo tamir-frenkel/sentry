@@ -1,14 +1,14 @@
 import {
   BREADCRUMB_TIMESTAMP_PLACEHOLDER,
+  BreadcrumbIcon,
   BreadcrumbTimeDisplay,
   getBreadcrumbColorConfig,
-  getBreadcrumbIcon,
   getBreadcrumbTitle,
 } from 'sentry/components/events/breadcrumbs/utils';
 import {BreadcrumbSort} from 'sentry/components/events/interfaces/breadcrumbs';
 import {convertCrumbType} from 'sentry/components/events/interfaces/breadcrumbs/utils';
 import {StructuredData} from 'sentry/components/structuredEventData';
-import * as Timeline from 'sentry/components/timeline';
+import Timeline from 'sentry/components/timeline';
 import type {RawCrumb} from 'sentry/types/breadcrumbs';
 import {defined} from 'sentry/utils';
 
@@ -32,7 +32,7 @@ export default function BreadcrumbsTimeline({
 
   const startTimestamp =
     timeDisplay === BreadcrumbTimeDisplay.RELATIVE
-      ? breadcrumbs[breadcrumbs.length - 1].timestamp
+      ? breadcrumbs?.at(-1)?.timestamp
       : undefined;
   const items = breadcrumbs.map((breadcrumb, i) => {
     const bc = convertCrumbType(breadcrumb);
@@ -43,9 +43,9 @@ export default function BreadcrumbsTimeline({
         key={i}
         title={getBreadcrumbTitle(bc.category)}
         colorConfig={getBreadcrumbColorConfig(bc.type)}
-        icon={getBreadcrumbIcon(bc.type)}
-        timestamp={bc.timestamp ?? BREADCRUMB_TIMESTAMP_PLACEHOLDER}
-        startTimestamp={startTimestamp}
+        icon={<BreadcrumbIcon type={bc.type} />}
+        timeString={bc.timestamp ?? BREADCRUMB_TIMESTAMP_PLACEHOLDER}
+        startTimeString={startTimestamp}
         // XXX: Only the virtual crumb can be marked as active for breadcrumbs
         isActive={isVirtualCrumb ?? false}
       >
@@ -78,8 +78,8 @@ export default function BreadcrumbsTimeline({
   });
 
   return (
-    <Timeline.Group>
+    <Timeline.Container>
       {sort === BreadcrumbSort.NEWEST ? items.reverse() : items}
-    </Timeline.Group>
+    </Timeline.Container>
   );
 }

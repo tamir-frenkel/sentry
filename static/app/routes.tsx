@@ -13,18 +13,19 @@ import withDomainRedirect from 'sentry/utils/withDomainRedirect';
 import withDomainRequired from 'sentry/utils/withDomainRequired';
 import App from 'sentry/views/app';
 import AuthLayout from 'sentry/views/auth/layout';
+import {ModuleName} from 'sentry/views/insights/types';
 import {Tab, TabPaths} from 'sentry/views/issueDetails/types';
 import IssueListContainer from 'sentry/views/issueList';
 import IssueListOverview from 'sentry/views/issueList/overview';
 import OrganizationContainer from 'sentry/views/organizationContainer';
 import OrganizationLayout from 'sentry/views/organizationLayout';
 import OrganizationRoot from 'sentry/views/organizationRoot';
+import {INSIGHTS_BASE_URL} from 'sentry/views/performance/settings';
 import {MODULE_BASE_URLS} from 'sentry/views/performance/utils/useModuleURL';
 import ProjectEventRedirect from 'sentry/views/projectEventRedirect';
 import redirectDeprecatedProjectRoute from 'sentry/views/projects/redirectDeprecatedProjectRoute';
 import RouteNotFound from 'sentry/views/routeNotFound';
 import SettingsWrapper from 'sentry/views/settings/components/settingsWrapper';
-import {ModuleName} from 'sentry/views/starfish/types';
 
 import {IndexRoute, Route} from './components/route';
 
@@ -1447,12 +1448,12 @@ function buildRoutes() {
   const llmMonitoringRedirects = USING_CUSTOMER_DOMAIN ? (
     <Redirect
       from="/llm-monitoring/"
-      to={`/insights/${MODULE_BASE_URLS[ModuleName.AI]}/`}
+      to={`/${INSIGHTS_BASE_URL}/${MODULE_BASE_URLS[ModuleName.AI]}/`}
     />
   ) : (
     <Redirect
       from="/organizations/:orgId/llm-monitoring/"
-      to={`/organizations/:orgId/insights/${MODULE_BASE_URLS[ModuleName.AI]}/`}
+      to={`/organizations/:orgId/${INSIGHTS_BASE_URL}/${MODULE_BASE_URLS[ModuleName.AI]}/`}
     />
   );
 
@@ -1463,42 +1464,44 @@ function buildRoutes() {
           <Redirect
             key={moduleBaseURL}
             from={`${moduleBaseURL}`}
-            to={`/insights/${moduleBaseURL}/`}
+            to={`/${INSIGHTS_BASE_URL}/${moduleBaseURL}/`}
           />
         )
     )
     .filter(Boolean);
 
   const insightsRoutes = (
-    <Route path="/insights/" withOrgPath>
+    <Route path={`/${INSIGHTS_BASE_URL}/`} withOrgPath>
       <Route path={`${MODULE_BASE_URLS[ModuleName.DB]}/`}>
         <IndexRoute
           component={make(
-            () => import('sentry/views/performance/database/databaseLandingPage')
+            () => import('sentry/views/insights/database/views/databaseLandingPage')
           )}
         />
         <Route
           path="spans/span/:groupId/"
           component={make(
-            () => import('sentry/views/performance/database/databaseSpanSummaryPage')
+            () => import('sentry/views/insights/database/views/databaseSpanSummaryPage')
           )}
         />
       </Route>
       <Route path={`${MODULE_BASE_URLS[ModuleName.HTTP]}/`}>
         <IndexRoute
-          component={make(() => import('sentry/views/performance/http/httpLandingPage'))}
+          component={make(
+            () => import('sentry/views/insights/http/views/httpLandingPage')
+          )}
         />
         <Route
           path="domains/"
           component={make(
-            () => import('sentry/views/performance/http/httpDomainSummaryPage')
+            () => import('sentry/views/insights/http/views/httpDomainSummaryPage')
           )}
         />
       </Route>
       <Route path={`${MODULE_BASE_URLS[ModuleName.CACHE]}/`}>
         <IndexRoute
           component={make(
-            () => import('sentry/views/performance/cache/cacheLandingPage')
+            () => import('sentry/views/insights/cache/views/cacheLandingPage')
           )}
         />
       </Route>
@@ -1506,13 +1509,13 @@ function buildRoutes() {
         <IndexRoute
           component={make(
             () =>
-              import('sentry/views/performance/browser/webVitals/webVitalsLandingPage')
+              import('sentry/views/insights/browser/webVitals/views/webVitalsLandingPage')
           )}
         />
         <Route
           path="overview/"
           component={make(
-            () => import('sentry/views/performance/browser/webVitals/pageOverview')
+            () => import('sentry/views/insights/browser/webVitals/views/pageOverview')
           )}
         />
       </Route>
@@ -1539,16 +1542,13 @@ function buildRoutes() {
       <Route path={`${MODULE_BASE_URLS[ModuleName.QUEUE]}/`}>
         <IndexRoute
           component={make(
-            () => import('sentry/views/performance/queues/queuesLandingPage')
+            () => import('sentry/views/insights/queues/views/queuesLandingPage')
           )}
         />
         <Route
           path="destination/"
           component={make(
-            () =>
-              import(
-                'sentry/views/performance/queues/destinationSummary/destinationSummaryPage'
-              )
+            () => import('sentry/views/insights/queues/views/destinationSummaryPage')
           )}
         />
       </Route>
@@ -1587,12 +1587,16 @@ function buildRoutes() {
       </Route>
       <Route path={`${MODULE_BASE_URLS[ModuleName.AI]}/`}>
         <IndexRoute
-          component={make(() => import('sentry/views/llmMonitoring/landing'))}
+          component={make(
+            () =>
+              import('sentry/views/insights/llmMonitoring/views/llmMonitoringLandingPage')
+          )}
         />
         <Route
           path="pipeline-type/:groupId/"
           component={make(
-            () => import('sentry/views/llmMonitoring/llmMonitoringDetailsPage')
+            () =>
+              import('sentry/views/insights/llmMonitoring/views/llmMonitoringDetailsPage')
           )}
         />
       </Route>
@@ -1690,7 +1694,7 @@ function buildRoutes() {
       {insightsRedirects}
       <Redirect
         from="browser/resources"
-        to={`/insights/${MODULE_BASE_URLS[ModuleName.RESOURCE]}/`}
+        to={`/${INSIGHTS_BASE_URL}/${MODULE_BASE_URLS[ModuleName.RESOURCE]}/`}
       />
       <Route
         path=":eventSlug/"

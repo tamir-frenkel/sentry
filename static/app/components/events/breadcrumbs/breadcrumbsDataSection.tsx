@@ -1,9 +1,9 @@
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 import styled from '@emotion/styled';
+import color from 'color';
 
 import {Button} from 'sentry/components/button';
 import ButtonBar from 'sentry/components/buttonBar';
-import ClippedBox from 'sentry/components/clippedBox';
 import {CompactSelect} from 'sentry/components/compactSelect';
 import DropdownButton from 'sentry/components/dropdownButton';
 import ErrorBoundary from 'sentry/components/errorBoundary';
@@ -21,12 +21,14 @@ import {
   BREADCRUMB_SORT_OPTIONS,
   BreadcrumbSort,
 } from 'sentry/components/events/interfaces/breadcrumbs';
+import {PANEL_INITIAL_HEIGHT} from 'sentry/components/events/interfaces/breadcrumbs/breadcrumbs';
 import {getVirtualCrumb} from 'sentry/components/events/interfaces/breadcrumbs/utils';
 import Input from 'sentry/components/input';
 import {IconClock, IconFilter, IconSort} from 'sentry/icons';
 import {t, tn} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
-import {EntryType, type Event} from 'sentry/types';
+import type {RawCrumb} from 'sentry/types/breadcrumbs';
+import {EntryType, type Event} from 'sentry/types/event';
 import {useLocalStorageState} from 'sentry/utils/useLocalStorageState';
 
 interface BreadcrumbsDataSectionProps {
@@ -45,37 +47,44 @@ export default function BreadcrumbsDataSection({event}: BreadcrumbsDataSectionPr
     BreadcrumbTimeDisplay.RELATIVE
   );
 
-  const breadcrumbEntryIndex = event.entries.findIndex(
-    entry => entry.type === EntryType.BREADCRUMBS
+  const breadcrumbEntryIndex =
+    event.entries?.findIndex(entry => entry.type === EntryType.BREADCRUMBS) ?? -1;
+  const breadcrumbs: RawCrumb[] = useMemo(
+    () => event.entries?.[breadcrumbEntryIndex]?.data?.values ?? [],
+    [event, breadcrumbEntryIndex]
   );
-  if (!breadcrumbEntryIndex) {
-    return null;
-  }
-  const breadcrumbs = event.entries[breadcrumbEntryIndex]?.data?.values ?? [];
-  if (breadcrumbs.length <= 0) {
-    return null;
-  }
-
-  const meta = event._meta?.entries?.[breadcrumbEntryIndex]?.data?.values;
+  const allCrumbs = useMemo(() => [...breadcrumbs], [breadcrumbs]);
+  // Mapping of breadcrumb index -> breadcrumb meta
+  const meta: Record<number, any> =
+    event._meta?.entries?.[breadcrumbEntryIndex]?.data?.values;
 
   // The virtual crumb is a representation of this event, displayed alongside
   // the rest of the breadcrumbs for more additional context.
   const virtualCrumb = getVirtualCrumb(event);
   let virtualCrumbIndex: number | undefined;
-  const allCrumbs = [...breadcrumbs];
   if (virtualCrumb) {
     virtualCrumbIndex = allCrumbs.length;
     allCrumbs.push(virtualCrumb);
   }
 
-  const filterOptions = getBreadcrumbFilters(allCrumbs);
+  const filterOptions = useMemo(() => getBreadcrumbFilters(allCrumbs), [allCrumbs]);
   const filteredCrumbs = allCrumbs.filter(bc =>
     filterSet.size === 0 ? true : filterSet.has(bc.type)
   );
-
-  const searchedCrumbs = applyBreadcrumbSearch(search, filteredCrumbs);
+  const searchedCrumbs = useMemo(
+    () => applyBreadcrumbSearch(search, filteredCrumbs),
+    [search, filteredCrumbs]
+  );
 
   const hasFilters = filterSet.size > 0 || search.length > 0;
+
+  if (!breadcrumbEntryIndex) {
+    return null;
+  }
+
+  if (breadcrumbs.length <= 0) {
+    return null;
+  }
 
   const actions = (
     <ButtonBar gap={1}>
@@ -142,7 +151,7 @@ export default function BreadcrumbsDataSection({event}: BreadcrumbsDataSectionPr
     >
       <ErrorBoundary mini message={t('There was an error loading the event breadcrumbs')}>
         {searchedCrumbs.length ? (
-          <ClippedBox clipHeight={250}>
+          <ScrollBox>
             <BreadcrumbsTimeline
               breadcrumbs={searchedCrumbs}
               virtualCrumbIndex={virtualCrumbIndex}
@@ -150,7 +159,7 @@ export default function BreadcrumbsDataSection({event}: BreadcrumbsDataSectionPr
               sort={sort}
               timeDisplay={timeDisplay}
             />
-          </ClippedBox>
+          </ScrollBox>
         ) : (
           <EmptyBreadcrumbsMessage>
             {t('No breadcrumbs found. ')}
@@ -185,4 +194,30 @@ const EmptyBreadcrumbsMessage = styled('div')`
 
 const ClearFiltersButton = styled(Button)`
   margin-top: ${space(1)};
+`;
+
+const ScrollBox = styled('div')`
+  position: relative;
+  overflow-y: scroll;
+  resize: vertical;
+  max-height: ${PANEL_INITIAL_HEIGHT}px;
+  /* Unsets max-height when resized */
+  &[style*='height'] {
+    max-height: unset;
+  }
+  padding-right: ${space(2)};
+  &:after {
+    content: '';
+    position: sticky;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 20px;
+    display: block;
+    background-image: linear-gradient(
+      to bottom,
+      ${p => color(p.theme.background).alpha(0.15).string()},
+      ${p => p.theme.background}
+    );
+  }
 `;

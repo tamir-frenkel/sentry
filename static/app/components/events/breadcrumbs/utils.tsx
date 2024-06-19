@@ -24,7 +24,7 @@ import {toTitleCase} from 'sentry/utils/string/toTitleCase';
 export const BREADCRUMB_TIMESTAMP_PLACEHOLDER = '--';
 const BREADCRUMB_TITLE_PLACEHOLDER = t('Generic');
 
-export enum BreadcrumbTimeDisplay {
+export const enum BreadcrumbTimeDisplay {
   RELATIVE = 'relative',
   ABSOLUTE = 'absolute',
 }
@@ -39,12 +39,15 @@ const Color = styled('span')<{colorConfig: Timeline.ColorConfig}>`
 `;
 
 export function applyBreadcrumbSearch(search: string, crumbs: RawCrumb[]): RawCrumb[] {
+  if (search === '') {
+    return crumbs;
+  }
   return crumbs.filter(
     c =>
       c.type.includes(search) ||
       c.message?.includes(search) ||
       c.category?.includes(search) ||
-      JSON.stringify(c.data).includes(search)
+      (c.data && JSON.stringify(c.data)?.includes(search))
   );
 }
 
@@ -58,7 +61,7 @@ export function getBreadcrumbFilters(crumbs: RawCrumb[]) {
     value: crumbType,
     leadingItems: (
       <Color colorConfig={getBreadcrumbColorConfig(crumbType)}>
-        {getBreadcrumbIcon(crumbType)}
+        <BreadcrumbIcon type={crumbType} />
       </Color>
     ),
     label: toTitleCase(crumbType),
@@ -111,8 +114,8 @@ export function getBreadcrumbColorConfig(type?: BreadcrumbType): Timeline.ColorC
   }
 }
 
-export function getBreadcrumbIcon(type?: BreadcrumbType): React.ReactNode {
-  switch (type) {
+export function BreadcrumbIcon(props: {type?: BreadcrumbType}) {
+  switch (props.type) {
     case BreadcrumbType.USER:
       return <IconUser size="xs" />;
     case BreadcrumbType.UI:

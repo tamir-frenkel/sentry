@@ -226,7 +226,6 @@ function DefaultGroupEventDetailsContent({
       ) : (
         <GroupEventEntry entryType={EntryType.BREADCRUMBS} {...eventEntryProps} />
       )}
-      <GroupEventEntry entryType={EntryType.BREADCRUMBS} {...eventEntryProps} />
       {!showPossibleSolutionsHigher && (
         <ResourcesAndPossibleSolutionsIssueDetailsContent
           event={event}

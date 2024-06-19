@@ -13,7 +13,8 @@ import {PageHeadingQuestionTooltip} from 'sentry/components/pageHeadingQuestionT
 import {space} from 'sentry/styles/space';
 import {PageAlert, PageAlertProvider} from 'sentry/utils/performance/contexts/pageAlert';
 import useOrganization from 'sentry/utils/useOrganization';
-import {useOnboardingProject} from 'sentry/views/performance/browser/webVitals/utils/useOnboardingProject';
+import {ReleaseComparisonSelector} from 'sentry/views/insights/common/components/releaseSelector';
+import {useOnboardingProject} from 'sentry/views/insights/common/queries/useOnboardingProject';
 import {ScreensView, YAxis} from 'sentry/views/performance/mobile/screenload/screens';
 import {PlatformSelector} from 'sentry/views/performance/mobile/screenload/screens/platformSelector';
 import {
@@ -25,7 +26,6 @@ import useCrossPlatformProject from 'sentry/views/performance/mobile/useCrossPla
 import {ModulePageProviders} from 'sentry/views/performance/modulePageProviders';
 import Onboarding from 'sentry/views/performance/onboarding';
 import {useModuleBreadcrumbs} from 'sentry/views/performance/utils/useModuleBreadcrumbs';
-import {ReleaseComparisonSelector} from 'sentry/views/starfish/components/releaseSelector';
 
 export function PageloadModule() {
   const organization = useOrganization();
