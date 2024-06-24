@@ -1,6 +1,5 @@
 import {useMemo, useState} from 'react';
 import styled from '@emotion/styled';
-import color from 'color';
 
 import {Button} from 'sentry/components/button';
 import ButtonBar from 'sentry/components/buttonBar';
@@ -21,10 +20,9 @@ import {
   BREADCRUMB_SORT_OPTIONS,
   BreadcrumbSort,
 } from 'sentry/components/events/interfaces/breadcrumbs';
-import {PANEL_INITIAL_HEIGHT} from 'sentry/components/events/interfaces/breadcrumbs/breadcrumbs';
 import {getVirtualCrumb} from 'sentry/components/events/interfaces/breadcrumbs/utils';
 import Input from 'sentry/components/input';
-import {IconClock, IconFilter, IconSort} from 'sentry/icons';
+import {IconClock, IconEllipsis, IconFilter, IconSort} from 'sentry/icons';
 import {t, tn} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
 import type {RawCrumb} from 'sentry/types/breadcrumbs';
@@ -151,15 +149,13 @@ export default function BreadcrumbsDataSection({event}: BreadcrumbsDataSectionPr
     >
       <ErrorBoundary mini message={t('There was an error loading the event breadcrumbs')}>
         {searchedCrumbs.length ? (
-          <ScrollBox>
-            <BreadcrumbsTimeline
-              breadcrumbs={searchedCrumbs}
-              virtualCrumbIndex={virtualCrumbIndex}
-              meta={meta}
-              sort={sort}
-              timeDisplay={timeDisplay}
-            />
-          </ScrollBox>
+          <BreadcrumbsTimeline
+            breadcrumbs={searchedCrumbs}
+            virtualCrumbIndex={virtualCrumbIndex}
+            meta={meta}
+            sort={sort}
+            timeDisplay={timeDisplay}
+          />
         ) : (
           <EmptyBreadcrumbsMessage>
             {t('No breadcrumbs found. ')}
@@ -176,6 +172,12 @@ export default function BreadcrumbsDataSection({event}: BreadcrumbsDataSectionPr
             )}
           </EmptyBreadcrumbsMessage>
         )}
+        <ViewAllContainer>
+          <VerticalEllipsis rotate={80} />
+          <div>
+            <ViewAllButton size="sm">{t('View All')}</ViewAllButton>
+          </div>
+        </ViewAllContainer>
       </ErrorBoundary>
     </EventDataSection>
   );
@@ -196,28 +198,29 @@ const ClearFiltersButton = styled(Button)`
   margin-top: ${space(1)};
 `;
 
-const ScrollBox = styled('div')`
+const ViewAllContainer = styled('div')`
   position: relative;
-  overflow-y: scroll;
-  resize: vertical;
-  max-height: ${PANEL_INITIAL_HEIGHT}px;
-  /* Unsets max-height when resized */
-  &[style*='height'] {
-    max-height: unset;
-  }
-  padding-right: ${space(2)};
-  &:after {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  margin-top: ${space(1)};
+  &::after {
     content: '';
-    position: sticky;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 20px;
-    display: block;
-    background-image: linear-gradient(
-      to bottom,
-      ${p => color(p.theme.background).alpha(0.15).string()},
-      ${p => p.theme.background}
-    );
+    position: absolute;
+    left: 10.5px;
+    width: 1px;
+    top: -${space(1)};
+    height: ${space(1)};
+    background: ${p => p.theme.border};
   }
+`;
+
+const VerticalEllipsis = styled(IconEllipsis)`
+  height: 22px;
+  color: ${p => p.theme.subText};
+  margin: ${space(0.5)};
+  transform: rotate(90deg);
+`;
+
+const ViewAllButton = styled(Button)`
+  padding: ${space(0.75)} ${space(1)};
 `;

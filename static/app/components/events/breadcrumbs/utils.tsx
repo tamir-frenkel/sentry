@@ -1,7 +1,7 @@
 import styled from '@emotion/styled';
 
 import type {SelectOption} from 'sentry/components/compactSelect';
-import type * as Timeline from 'sentry/components/timeline';
+import type {ColorConfig} from 'sentry/components/timeline';
 import {
   IconCursorArrow,
   IconFire,
@@ -34,7 +34,7 @@ export const BREADCRUMB_TIME_DISPLAY_OPTIONS = [
 ];
 export const BREADCRUMB_TIME_DISPLAY_LOCALSTORAGE_KEY = 'event-breadcrumb-time-display';
 
-const Color = styled('span')<{colorConfig: Timeline.ColorConfig}>`
+const Color = styled('span')<{colorConfig: ColorConfig}>`
   color: ${p => p.theme[p.colorConfig.primary]};
 `;
 
@@ -89,7 +89,7 @@ export function getBreadcrumbTitle(category: RawCrumb['category']) {
   }
 }
 
-export function getBreadcrumbColorConfig(type?: BreadcrumbType): Timeline.ColorConfig {
+export function getBreadcrumbColorConfig(type?: BreadcrumbType): ColorConfig {
   switch (type) {
     case BreadcrumbType.ERROR:
       return {primary: 'red400', secondary: 'red200'};

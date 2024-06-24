@@ -12,6 +12,8 @@ import Timeline from 'sentry/components/timeline';
 import type {RawCrumb} from 'sentry/types/breadcrumbs';
 import {defined} from 'sentry/utils';
 
+const BREADCRUMB_SUMMARY_COUNT = 3;
+
 interface BreadcrumbsTimelineProps {
   breadcrumbs: RawCrumb[];
   meta?: Record<string, any>;
@@ -34,6 +36,7 @@ export default function BreadcrumbsTimeline({
     timeDisplay === BreadcrumbTimeDisplay.RELATIVE
       ? breadcrumbs?.at(-1)?.timestamp
       : undefined;
+
   const items = breadcrumbs.map((breadcrumb, i) => {
     const bc = convertCrumbType(breadcrumb);
     const bcMeta = meta[i];
@@ -48,6 +51,7 @@ export default function BreadcrumbsTimeline({
         startTimeString={startTimestamp}
         // XXX: Only the virtual crumb can be marked as active for breadcrumbs
         isActive={isVirtualCrumb ?? false}
+        style={{background: 'transparent'}}
       >
         {defined(bc.message) && (
           <Timeline.Text>
@@ -77,9 +81,10 @@ export default function BreadcrumbsTimeline({
     );
   });
 
-  return (
-    <Timeline.Container>
-      {sort === BreadcrumbSort.NEWEST ? items.reverse() : items}
-    </Timeline.Container>
-  );
+  const summaryItems =
+    sort === BreadcrumbSort.NEWEST
+      ? items.slice(0, BREADCRUMB_SUMMARY_COUNT)
+      : items.slice(items.length - BREADCRUMB_SUMMARY_COUNT, items.length);
+
+  return <Timeline.Container>{summaryItems}</Timeline.Container>;
 }
