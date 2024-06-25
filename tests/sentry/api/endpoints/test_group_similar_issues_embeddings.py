@@ -219,12 +219,14 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
 
         expected_seer_request_params = {
             "threshold": 0.01,
+            "event_id": self.group.get_latest_event().event_id,
             "hash": NonNone(self.event.get_primary_hash()),
             "project_id": self.project.id,
             "stacktrace": EXPECTED_STACKTRACE_STRING,
             "message": self.group.message,
             "exception_type": "ZeroDivisionError",
             "read_only": True,
+            "referrer": "similar_issues",
             "k": 1,
         }
 
@@ -333,12 +335,14 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
             "Seer similar issues response entry missing key 'parent_hash'",
             extra={
                 "request_params": {
+                    "event_id": self.group.get_latest_event().event_id,
                     "hash": NonNone(self.event.get_primary_hash()),
                     "project_id": self.project.id,
                     "stacktrace": EXPECTED_STACKTRACE_STRING,
                     "message": self.group.message,
                     "exception_type": "ZeroDivisionError",
                     "read_only": True,
+                    "referrer": "similar_issues",
                 },
                 "raw_similar_issue_data": {
                     "message_distance": 0.05,
@@ -531,12 +535,14 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
             body=orjson.dumps(
                 {
                     "threshold": 0.01,
+                    "event_id": self.group.get_latest_event().event_id,
                     "hash": NonNone(self.event.get_primary_hash()),
                     "project_id": self.project.id,
                     "stacktrace": EXPECTED_STACKTRACE_STRING,
                     "message": self.group.message,
                     "exception_type": "ZeroDivisionError",
                     "read_only": True,
+                    "referrer": "similar_issues",
                 },
             ),
             headers={"content-type": "application/json;charset=utf-8"},
@@ -557,12 +563,14 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
             body=orjson.dumps(
                 {
                     "threshold": 0.01,
+                    "event_id": self.group.get_latest_event().event_id,
                     "hash": NonNone(self.event.get_primary_hash()),
                     "project_id": self.project.id,
                     "stacktrace": EXPECTED_STACKTRACE_STRING,
                     "message": self.group.message,
                     "exception_type": "ZeroDivisionError",
                     "read_only": True,
+                    "referrer": "similar_issues",
                     "k": 1,
                 },
             ),
@@ -584,12 +592,14 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
             body=orjson.dumps(
                 {
                     "threshold": 0.01,
+                    "event_id": self.group.get_latest_event().event_id,
                     "hash": NonNone(self.event.get_primary_hash()),
                     "project_id": self.project.id,
                     "stacktrace": EXPECTED_STACKTRACE_STRING,
                     "message": self.group.message,
                     "exception_type": "ZeroDivisionError",
                     "read_only": True,
+                    "referrer": "similar_issues",
                 },
             ),
             headers={"content-type": "application/json;charset=utf-8"},
