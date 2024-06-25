@@ -171,6 +171,7 @@ const Content = styled('div')`
   color: ${p => p.theme.subText};
   margin: ${space(0.25)} 0 0;
   font-size: ${p => p.theme.fontSizeSmall};
+  word-wrap: break-word;
 `;
 
 export const Text = styled('div')`

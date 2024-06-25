@@ -1,6 +1,7 @@
 import styled from '@emotion/styled';
 
 import type {SelectOption} from 'sentry/components/compactSelect';
+import {BreadcrumbSort} from 'sentry/components/events/interfaces/breadcrumbs';
 import type {ColorConfig} from 'sentry/components/timeline';
 import {
   IconCursorArrow,
@@ -23,6 +24,7 @@ import {toTitleCase} from 'sentry/utils/string/toTitleCase';
 
 export const BREADCRUMB_TIMESTAMP_PLACEHOLDER = '--';
 const BREADCRUMB_TITLE_PLACEHOLDER = t('Generic');
+const BREADCRUMB_SUMMARY_COUNT = 3;
 
 export const enum BreadcrumbTimeDisplay {
   RELATIVE = 'relative',
@@ -37,6 +39,17 @@ export const BREADCRUMB_TIME_DISPLAY_LOCALSTORAGE_KEY = 'event-breadcrumb-time-d
 const Color = styled('span')<{colorConfig: ColorConfig}>`
   color: ${p => p.theme[p.colorConfig.primary]};
 `;
+
+/**
+ * Returns a summary of the provided breadcrumbs.
+ * As of writing this, it just grabs a few, but in the future it may collapse,
+ * or manipulate them in some way for a better summary.
+ */
+export function getSummaryBreadcrumbs(sort: BreadcrumbSort, crumbs: RawCrumb[]) {
+  return sort === BreadcrumbSort.NEWEST
+    ? crumbs.slice(0, BREADCRUMB_SUMMARY_COUNT)
+    : crumbs.slice(crumbs.length - BREADCRUMB_SUMMARY_COUNT, crumbs.length);
+}
 
 export function applyBreadcrumbSearch(search: string, crumbs: RawCrumb[]): RawCrumb[] {
   if (search === '') {
