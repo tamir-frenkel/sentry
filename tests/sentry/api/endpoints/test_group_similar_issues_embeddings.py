@@ -247,6 +247,7 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
             tags={
                 "response_status": 200,
                 "outcome": "matching_group_found",
+                "referrer": "similar_issues",
             },
         )
 
@@ -358,6 +359,7 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
                 "response_status": 200,
                 "outcome": "error",
                 "error": "IncompleteSeerDataError",
+                "referrer": "similar_issues",
             },
         )
 
@@ -401,6 +403,7 @@ class GroupSimilarIssuesEmbeddingsTest(APITestCase):
                 "response_status": 200,
                 "outcome": "error",
                 "error": "SimilarGroupNotFoundError",
+                "referrer": "similar_issues",
             },
         )
         assert response.data == self.get_expected_response(
