@@ -119,7 +119,7 @@ def get_current_batch_groups_from_postgres(project, last_processed_index, batch_
             project_id=project.id,
             type=ErrorGroupType.type_id,
             times_seen__gt=1,
-            last_seen__gt=(datetime.now(UTC) - timedelta(days=90)),
+            last_seen__gt=(datetime.now(UTC) - timedelta(days=730)),
         )
         .exclude(status__in=[GroupStatus.PENDING_DELETION, GroupStatus.DELETION_IN_PROGRESS])
         .values_list("id", "data")

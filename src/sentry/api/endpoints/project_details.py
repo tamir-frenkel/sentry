@@ -376,7 +376,7 @@ class ProjectAdminSerializer(ProjectMemberSerializer):
                 "Grouping expiry must be sometime within the next 90 days and not in the past. Perhaps you specified the timestamp not in seconds?"
             )
 
-        max_expiry_date = now + (91 * 24 * 3600)
+        max_expiry_date = now + (731 * 24 * 3600)
         if value > max_expiry_date:
             value = max_expiry_date
 

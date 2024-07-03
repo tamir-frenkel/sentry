@@ -49,7 +49,7 @@ def _replay_event(project_id: int, replay_id: str, event: dict[str, Any]) -> str
             "replay_id": replay_id,
             "project_id": project_id,
             "segment_id": None,
-            "retention_days": 90,
+            "retention_days": 730,
             "payload": list(json.dumps(event).encode()),
         }
     )

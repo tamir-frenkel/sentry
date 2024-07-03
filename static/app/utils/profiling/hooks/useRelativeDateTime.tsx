@@ -21,7 +21,7 @@ export function useRelativeDateTime({
   // Make sure to memo this. Otherwise, each re-render will have
   // a different min/max date time, causing the query to refetch.
   const maxDateTime = useMemo(() => Date.now(), []);
-  const minDateTime = maxDateTime - (retentionDays ?? 90) * DAY;
+  const minDateTime = maxDateTime - (retentionDays ?? 730) * DAY;
 
   const beforeTime = anchorTime - relativeDays * DAY;
   const beforeDateTime =

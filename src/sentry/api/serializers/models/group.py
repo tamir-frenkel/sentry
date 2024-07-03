@@ -548,7 +548,7 @@ class GroupSerializerBase(Serializer, ABC):
 
         return max(
             min(last_seen - timedelta(days=1), datetime.now(timezone.utc) - timedelta(days=14)),
-            datetime.now(timezone.utc) - timedelta(days=90),
+            datetime.now(timezone.utc) - timedelta(days=730),
         )
 
     @staticmethod

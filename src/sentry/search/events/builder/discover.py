@@ -1003,7 +1003,7 @@ class BaseQueryBuilder:
             result: list[MetricMeta] = get_custom_measurements(
                 project_ids=self.params.project_ids,
                 organization_id=self.organization_id,
-                start=datetime.today() - timedelta(days=90),
+                start=datetime.today() - timedelta(days=730),
                 end=datetime.today(),
             )
         # Don't fully fail if we can't get the CM, but still capture the exception

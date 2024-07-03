@@ -345,7 +345,7 @@ def _normalize_profile(profile: Profile, organization: Organization, project: Pr
 
 @metrics.wraps("process_profile.normalize")
 def _normalize(profile: Profile, organization: Organization) -> None:
-    profile["retention_days"] = quotas.backend.get_event_retention(organization=organization) or 90
+    profile["retention_days"] = quotas.backend.get_event_retention(organization=organization) or 730
     platform = profile["platform"]
     version = profile.get("version")
 

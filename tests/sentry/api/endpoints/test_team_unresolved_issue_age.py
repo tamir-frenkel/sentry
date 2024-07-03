@@ -33,7 +33,7 @@ class TeamUnresolvedIssueAgeEndpointTest(APITestCase):
             project=project2, status=GroupStatus.RESOLVED, first_seen=before_now(weeks=60)
         )
         # This group shouldn't be counted since it hasn't been seen for more than 90 days
-        last_seen_too_old_group = self.create_group(project=project1, last_seen=before_now(days=91))
+        last_seen_too_old_group = self.create_group(project=project1, last_seen=before_now(days=731))
         GroupAssignee.objects.assign(group1, self.user)
         GroupAssignee.objects.assign(group2, self.user)
         GroupAssignee.objects.assign(group3, self.team)

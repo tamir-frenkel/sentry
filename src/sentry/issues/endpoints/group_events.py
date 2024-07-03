@@ -91,7 +91,7 @@ class GroupEventsEndpoint(GroupEndpoint, EnvironmentMixin):
         end: datetime | None,
     ) -> Response:
         default_end = timezone.now()
-        default_start = default_end - timedelta(days=90)
+        default_start = default_end - timedelta(days=730)
         params: ParamsType = {
             "project_id": [group.project_id],
             "organization_id": group.project.organization_id,

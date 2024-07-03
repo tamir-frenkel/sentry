@@ -150,7 +150,7 @@ export function TimeRangeSelector({
   showRelative = true,
   defaultAbsolute,
   defaultPeriod = DEFAULT_STATS_PERIOD,
-  maxPickableDays = 90,
+  maxPickableDays = 730,
   maxDateRange,
   disallowArbitraryRelativeRanges = false,
   trigger,

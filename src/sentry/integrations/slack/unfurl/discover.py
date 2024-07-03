@@ -200,7 +200,7 @@ def unfurl_discover(
         else:
             interval = saved_query.get("interval")
             validated_interval = None
-            delta = timedelta(days=90)
+            delta = timedelta(days=730)
             if "statsPeriod" in params:
                 if (parsed_period := parse_stats_period(params["statsPeriod"])) is not None:
                     delta = parsed_period

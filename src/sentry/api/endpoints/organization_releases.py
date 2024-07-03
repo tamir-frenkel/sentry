@@ -353,7 +353,7 @@ class OrganizationReleasesEndpoint(
                     release_versions,
                     filter_params["start"]
                     if filter_params["start"]
-                    else datetime.utcnow() - timedelta(days=90),
+                    else datetime.utcnow() - timedelta(days=730),
                     filter_params["end"] if filter_params["end"] else datetime.utcnow(),
                 )
                 valid_versions = [

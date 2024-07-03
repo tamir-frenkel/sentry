@@ -428,7 +428,7 @@ class SnubaEventStorage(EventStorage):
         prev_filter.conditions.extend(get_before_event_condition(event))
 
         # We only store 90 days of data, add a few extra days just in case
-        prev_filter.start = event.datetime - timedelta(days=100)
+        prev_filter.start = event.datetime - timedelta(days=740)
         # the previous event can have the same timestamp, add 1 second
         # to the end condition since it uses a less than condition
         prev_filter.end = event.datetime + timedelta(seconds=1)

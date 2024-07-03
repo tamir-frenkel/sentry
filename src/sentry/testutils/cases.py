@@ -1315,7 +1315,7 @@ class SnubaTestCase(BaseTestCase):
             "distinct_id": str(uuid4()),
             "status": "ok",
             "seq": 0,
-            "retention_days": 90,
+            "retention_days": 730,
             "duration": 60.0,
             "errors": 0,
             "started": time.time() // 60 * 60,
@@ -1518,7 +1518,7 @@ class BaseSpansTestCase(SnubaTestCase):
             "received": timezone.now().timestamp(),
             "start_timestamp_ms": int(timestamp.timestamp() * 1000),
             "sentry_tags": {"transaction": transaction or "/hello"},
-            "retention_days": 90,
+            "retention_days": 730,
         }
 
         if tags:
@@ -1586,7 +1586,7 @@ class BaseSpansTestCase(SnubaTestCase):
                 "op": op or "http",
                 "group": group,
             },
-            "retention_days": 90,
+            "retention_days": 730,
         }
 
         if tags:
@@ -1764,7 +1764,7 @@ class BaseMetricsTestCase(SnubaTestCase):
             "tags": {tag_key(key): tag_value(value) for key, value in tags.items()},
             "type": {"counter": "c", "set": "s", "distribution": "d", "gauge": "g"}[type],
             "value": value,
-            "retention_days": 90,
+            "retention_days": 730,
             "use_case_id": use_case_id.value,
             # making up a sentry_received_timestamp, but it should be sometime
             # after the timestamp of the event
@@ -2376,7 +2376,7 @@ class ProfilesSnubaTestCase(
             "profile_id": profile_id,
             "project_id": project.id,
             "received": int(timezone.now().timestamp()),
-            "retention_days": 90,
+            "retention_days": 730,
             "timestamp": int(timestamp),
             "transaction_name": transaction["transaction"],
         }
@@ -3226,7 +3226,7 @@ class SpanTestCase(BaseTestCase):
     # Some base data for create_span
     base_span: dict[str, Any] = {
         "is_segment": False,
-        "retention_days": 90,
+        "retention_days": 730,
         "tags": {},
         "sentry_tags": {},
         "measurements": {},

@@ -586,7 +586,7 @@ def _query_meta_table(
         Condition(Column("org_id"), Op.EQ, org_id),
         Condition(Column("project_id"), Op.IN, project_ids),
         Condition(Column("use_case_id"), Op.EQ, use_case_id.value),
-        Condition(Column("timestamp"), Op.GTE, datetime.now(UTC) - timedelta(days=90)),
+        Condition(Column("timestamp"), Op.GTE, datetime.now(UTC) - timedelta(days=730)),
         Condition(Column("timestamp"), Op.LT, datetime.now(UTC) + timedelta(days=1)),
     ]
     if extra_condition:
@@ -674,7 +674,7 @@ def fetch_metric_tag_values(
         Condition(Column("project_id"), Op.IN, project_ids),
         Condition(Column("metric_id"), Op.EQ, metric_id),
         Condition(Column("tag_key"), Op.EQ, tag_key_id),
-        Condition(Column("timestamp"), Op.GTE, datetime.now(UTC) - timedelta(days=90)),
+        Condition(Column("timestamp"), Op.GTE, datetime.now(UTC) - timedelta(days=730)),
         Condition(Column("timestamp"), Op.LT, datetime.now(UTC) + timedelta(days=1)),
     ]
 

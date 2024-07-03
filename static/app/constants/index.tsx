@@ -218,7 +218,7 @@ export const MENU_CLOSE_DELAY = 200;
 
 export const SLOW_TOOLTIP_DELAY = 1000;
 
-export const MAX_PICKABLE_DAYS = 90;
+export const MAX_PICKABLE_DAYS = 730;
 
 export const DEFAULT_STATS_PERIOD = '14d';
 
@@ -234,6 +234,7 @@ export const DEFAULT_RELATIVE_PERIODS = {
   '14d': t('Last 14 days'),
   '30d': t('Last 30 days'),
   '90d': t('Last 90 days'),
+  '730d': t('Last 730 days'),
 };
 
 export const DEFAULT_RELATIVE_PERIODS_PAGE_FILTER = {

@@ -130,7 +130,7 @@ def transform_event_for_linking_payload(replay_id: str, event: BaseEvent) -> Eve
         "replay_id": replay_id,
         "project_id": event.project.id,
         "segment_id": None,
-        "retention_days": 90,
+        "retention_days": 730,
         "payload": _make_json_binary_payload(),
     }
 

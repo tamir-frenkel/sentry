@@ -538,7 +538,7 @@ class MetricsReleaseHealthBackend(ReleaseHealthBackend):
         if now is None:
             now = datetime.now(timezone.utc)
 
-        start = now - timedelta(days=90)
+        start = now - timedelta(days=730)
 
         projects_list = list(projects_list)
 
@@ -1264,7 +1264,7 @@ class MetricsReleaseHealthBackend(ReleaseHealthBackend):
             now = datetime.now(timezone.utc)
 
         # TODO: assumption about retention?
-        start = now - timedelta(days=90)
+        start = now - timedelta(days=730)
 
         project_ids = [proj_id for proj_id, _release in project_releases]
         projects, org_id = self._get_projects_and_org_id(project_ids)

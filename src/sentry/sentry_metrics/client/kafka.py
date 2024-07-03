@@ -33,7 +33,7 @@ def get_retention_from_org_id(org_id: int) -> int:
     else:
         # the default in Snuba is 90 days, and if there is no
         # org-configured retention stored, we use that default
-        retention = quotas.backend.get_event_retention(organization=org_id) or 90
+        retention = quotas.backend.get_event_retention(organization=org_id) or 730
         cache.set(cache_key, retention)
 
         return retention

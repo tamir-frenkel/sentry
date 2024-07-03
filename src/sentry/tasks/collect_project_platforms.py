@@ -52,4 +52,4 @@ def collect_project_platforms(paginate=1000, **kwargs):
             )
 
     # remove (likely) unused platform associations
-    ProjectPlatform.objects.filter(last_seen__lte=now - timedelta(days=90)).delete()
+    ProjectPlatform.objects.filter(last_seen__lte=now - timedelta(days=730)).delete()

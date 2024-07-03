@@ -52,7 +52,7 @@ class TeamUnresolvedIssueAgeEndpoint(TeamEndpoint, EnvironmentMixin):
             .filter(
                 group_environment_filter,
                 status=GroupStatus.UNRESOLVED,
-                last_seen__gt=datetime.now(UTC) - timedelta(days=90),
+                last_seen__gt=datetime.now(UTC) - timedelta(days=730),
             )
             .annotate(
                 bucket=Case(

@@ -16,7 +16,7 @@ from .base import ReplacementRule
 RuleSet = Mapping[ReplacementRule, int]
 
 #: How long a transaction name rule lasts, in seconds.
-TRANSACTION_NAME_RULE_TTL_SECS = 90 * 24 * 60 * 60  # 90 days
+TRANSACTION_NAME_RULE_TTL_SECS = 730 * 24 * 60 * 60  # 90 days
 
 
 class RuleStore(Protocol):

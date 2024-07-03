@@ -40,7 +40,7 @@ def time_since(value: datetime):
 
 
 def get_relative_time(
-    anchor: int, relative_days: int, retention_days: int = 90
+    anchor: int, relative_days: int, retention_days: int = 730
 ) -> Mapping[str, datetime]:
     max_time = time.time()
     min_time = max_time - retention_days * DAY_IN_SEC

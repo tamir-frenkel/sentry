@@ -54,7 +54,7 @@ def get_time_params(start: datetime, end: datetime) -> MappedParams:
     anomaly_detection_range = end - start
 
     if anomaly_detection_range > timedelta(days=14):
-        snuba_range = timedelta(days=90)
+        snuba_range = timedelta(days=730)
         granularity = 3600
 
     elif anomaly_detection_range > timedelta(days=1):
@@ -67,7 +67,7 @@ def get_time_params(start: datetime, end: datetime) -> MappedParams:
 
     additional_time_needed = snuba_range - anomaly_detection_range
     now = datetime.now(timezone.utc)
-    start_limit = now - timedelta(days=90)
+    start_limit = now - timedelta(days=730)
     end_limit = now
     start = max(start, start_limit)
     end = min(end, end_limit)
@@ -77,7 +77,7 @@ def get_time_params(start: datetime, end: datetime) -> MappedParams:
 
     # If window will go back farther than 90 days, use today - 90 as start
     if start - window_increase < start_limit:
-        query_start = now - timedelta(days=90)
+        query_start = now - timedelta(days=730)
         additional_time_needed -= start - query_start
         window_increase = additional_time_needed
     # If window extends beyond today, use today as end

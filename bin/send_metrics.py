@@ -30,7 +30,7 @@ def make_counter_payload(use_case, org_id, rand_str):
         "type": "c",
         "value": 1,
         "org_id": org_id,
-        "retention_days": 90,
+        "retention_days": 730,
         "project_id": 3,
     }
 
@@ -60,7 +60,7 @@ def make_dist_payload(use_case, org_id, rand_str, value_len, b64_encode):
             }
         ),
         "org_id": org_id,
-        "retention_days": 90,
+        "retention_days": 730,
         "project_id": 3,
     }
 
@@ -93,7 +93,7 @@ def make_set_payload(use_case, org_id, rand_str, value_len, b64_encode):
             }
         ),
         "org_id": org_id,
-        "retention_days": 90,
+        "retention_days": 730,
         "project_id": 3,
     }
 
@@ -116,7 +116,7 @@ def make_gauge_payload(use_case, org_id, rand_str):
             "last": 1,
         },
         "org_id": org_id,
-        "retention_days": 90,
+        "retention_days": 730,
         "project_id": 3,
     }
 

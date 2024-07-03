@@ -50,7 +50,7 @@ class BaseIndexer(Model):
     organization_id = BoundedBigIntegerField()
     date_added = models.DateTimeField(default=timezone.now)
     last_seen = models.DateTimeField(default=timezone.now, db_index=True)
-    retention_days = models.IntegerField(default=90)
+    retention_days = models.IntegerField(default=730)
 
     objects: ClassVar[BaseManager[Self]] = BaseManager(
         cache_fields=("pk",), cache_ttl=settings.SENTRY_METRICS_INDEXER_CACHE_TTL

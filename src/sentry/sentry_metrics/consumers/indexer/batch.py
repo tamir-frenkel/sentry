@@ -457,7 +457,7 @@ class IndexerBatch:
                     new_payload_v1: Metric = {
                         "tags": cast(dict[str, int], new_tags),
                         # XXX: relay actually sends this value unconditionally
-                        "retention_days": old_payload_value.get("retention_days", 90),
+                        "retention_days": old_payload_value.get("retention_days", 730),
                         "mapping_meta": output_message_meta,
                         "use_case_id": old_payload_value["use_case_id"].value,
                         "metric_id": numeric_metric_id,
@@ -477,7 +477,7 @@ class IndexerBatch:
                     new_payload_v2: GenericMetric = {
                         "tags": cast(dict[str, str], new_tags),
                         "version": 2,
-                        "retention_days": old_payload_value.get("retention_days", 90),
+                        "retention_days": old_payload_value.get("retention_days", 730),
                         "mapping_meta": output_message_meta,
                         "use_case_id": old_payload_value["use_case_id"].value,
                         "metric_id": numeric_metric_id,

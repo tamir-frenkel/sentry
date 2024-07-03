@@ -184,7 +184,7 @@ def has_archived_segment(project_id: int, replay_id: str) -> bool:
                 # We request the full 90 day range. This is effectively an unbounded timestamp
                 # range.
                 Condition(Column("timestamp"), Op.LT, datetime.now()),
-                Condition(Column("timestamp"), Op.GTE, datetime.now() - timedelta(days=90)),
+                Condition(Column("timestamp"), Op.GTE, datetime.now() - timedelta(days=730)),
             ],
             granularity=Granularity(3600),
         ),
@@ -218,7 +218,7 @@ def _fetch_segments_from_snuba(
                 # We request the full 90 day range. This is effectively an unbounded timestamp
                 # range.
                 Condition(Column("timestamp"), Op.LT, datetime.now()),
-                Condition(Column("timestamp"), Op.GTE, datetime.now() - timedelta(days=90)),
+                Condition(Column("timestamp"), Op.GTE, datetime.now() - timedelta(days=730)),
                 # Used to dynamically pass the "segment_id" condition for details requests.
                 *conditions,
             ],

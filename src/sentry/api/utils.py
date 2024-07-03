@@ -63,7 +63,7 @@ from sentry.utils.snuba import (
 
 logger = logging.getLogger(__name__)
 
-MAX_STATS_PERIOD = timedelta(days=90)
+MAX_STATS_PERIOD = timedelta(days=730)
 
 
 def get_datetime_from_stats_period(

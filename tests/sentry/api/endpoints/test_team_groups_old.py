@@ -43,7 +43,7 @@ class TeamGroupsOldTest(APITestCase):
         last_seen_too_old_group = self.create_group(
             project=project1,
             first_seen=datetime(2018, 1, 12, 3, 8, 25, tzinfo=UTC),
-            last_seen=datetime.now(UTC) - timedelta(days=91),
+            last_seen=datetime.now(UTC) - timedelta(days=731),
         )
         GroupAssignee.objects.assign(last_seen_too_old_group, self.user)
 

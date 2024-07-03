@@ -11,7 +11,7 @@ class GenericMetricsTestMixIn:
     counter_value = 5
     dist_values = [5, 3]
     metrics_tags = {"a": "b"}
-    retention_days = 90
+    retention_days = 730
     unit = "millisecond"
 
     def get_mri(self, metric_name: str, metric_type: str, use_case_id: UseCaseID, unit: str | None):

@@ -58,7 +58,7 @@ def calculate_threshold(project: Project) -> float | None:
     now = datetime.now()
     one_hour_ago = now - timedelta(hours=1)
     one_week_ago = now - timedelta(days=7)
-    ninety_days_ago = now - timedelta(days=90)
+    ninety_days_ago = now - timedelta(days=730)
 
     subquery = Query(
         match=Entity(EntityKey.Events.value),

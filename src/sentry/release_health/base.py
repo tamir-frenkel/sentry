@@ -109,6 +109,7 @@ StatsPeriod = Literal[
     "14d",
     "30d",
     "90d",
+    "730d",
 ]
 
 OverviewStat = Literal["users", "sessions"]

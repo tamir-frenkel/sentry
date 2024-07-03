@@ -10,7 +10,7 @@ export function CheckinProcessingErrorFixture(
         message_type: 'check_in',
         payload: '',
         project_id: 1,
-        retention_days: 90,
+        retention_days: 730,
         sdk: '',
         start_time: 171659668,
         type: 'check_in',

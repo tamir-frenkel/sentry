@@ -68,7 +68,7 @@ type IntervalOption = {
 
 const INTERVAL_OPTIONS: IntervalOption[] = [
   {
-    rangeStart: 90 * 24,
+    rangeStart: 730 * 24,
     min: 1,
     default: '4h',
     options: ['1h', '4h', '1d', '5d'],

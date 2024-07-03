@@ -289,7 +289,7 @@ def get_top_5_issues_by_count_for_file(
 
     group_ids = list(
         Group.objects.filter(
-            first_seen__gte=datetime.now(UTC) - timedelta(days=90),
+            first_seen__gte=datetime.now(UTC) - timedelta(days=730),
             last_seen__gte=datetime.now(UTC) - timedelta(days=14),
             status=GroupStatus.UNRESOLVED,
             project__in=projects,
