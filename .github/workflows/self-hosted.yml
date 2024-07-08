@@ -84,5 +84,13 @@ jobs:
             --tag ghcr.io/getsentry/sentry-self-hosted:${{ github.sha }} \
             --file self-hosted/Dockerfile \
             --build-arg SOURCE_COMMIt=${{ github.sha }} \
+            --output type=docker,dest=self-hosted-{{ github.run_id }}-docker-image 
             "${args[@]}" \
             .
+
+      - name: Upload docker image
+        uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: self-hosted-{{ github.run_id }}-docker-image
+          path: "self-hosted-{{ github.run_id }}-docker-image"
