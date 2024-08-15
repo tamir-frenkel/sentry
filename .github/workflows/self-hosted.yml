@@ -86,8 +86,9 @@ jobs:
             --cache-to type=inline \
             --tag ghcr.io/getsentry/sentry-self-hosted:${{ github.sha }} \
             --file self-hosted/Dockerfile \
-            --build-arg SOURCE_COMMIt=${{ github.sha }} \
+            --build-arg SOURCE_COMMIT=${{ github.sha }} \
             --output type=docker,dest=self-hosted-docker-image \
+            "${args[@]}" \
             .
 
       - name: Upload docker image
