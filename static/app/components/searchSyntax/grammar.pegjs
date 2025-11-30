@@ -241,7 +241,7 @@ aggregate_key
 
 function_args
   = arg1:aggregate_param
-    args:(spaces comma spaces !comma aggregate_param?)* {
+    args:(spaces comma spaces (!comma aggregate_param)?)* {
       return tc.tokenKeyAggregateArgs(arg1, args);
     }
 
@@ -300,7 +300,7 @@ boolean_value
 text_in_list
   = open_bracket
     item1:text_in_value
-    items:(spaces comma spaces !comma text_in_value?)*
+    items:(spaces comma spaces (!comma text_in_value)?)*
     closed_bracket
     &end_value {
       return tc.tokenValueTextList(item1, items);
@@ -309,7 +309,7 @@ text_in_list
 numeric_in_list
   = open_bracket
     item1:numeric_value
-    items:(spaces comma spaces !comma numeric_value?)*
+    items:(spaces comma spaces (!comma numeric_value)?)*
     closed_bracket
     &end_value {
       return tc.tokenValueNumberList(item1, items);
@@ -339,8 +339,8 @@ ms_format   = [0-9] [0-9]? [0-9]? [0-9]? [0-9]? [0-9]?
 tz_format   = [+-] num2 ":" num2
 
 iso_8601_date_format
-  = date_format time_format? ("Z" / tz_format)? &end_value {
-      return tc.tokenValueIso8601Date(text());
+  = date:date_format time:time_format? tz:("Z" / tz_format)? &end_value {
+      return tc.tokenValueIso8601Date(text(), date, time, tz);
     }
 
 rel_date_format

@@ -12,7 +12,7 @@ import {browserHistory} from 'sentry/utils/browserHistory';
 import EventView from 'sentry/utils/discover/eventView';
 import Results from 'sentry/views/discover/results';
 
-import {DEFAULT_EVENT_VIEW, TRANSACTION_VIEWS} from './data';
+import {DEFAULT_EVENT_VIEW, getTransactionViews} from './data';
 
 const FIELDS = [
   {
@@ -89,6 +89,7 @@ function renderMockRequests() {
           timestamp: 'date',
           'user.id': 'string',
         },
+        discoverSplitDecision: 'transaction-like',
       },
       data: [
         {
@@ -181,6 +182,7 @@ function renderMockRequests() {
       widths: ['-1', '-1', '-1', '-1', '-1'],
       range: '24h',
       orderby: '-user.display',
+      queryDataset: 'discover',
     },
   });
 
@@ -204,6 +206,7 @@ function renderMockRequests() {
       widths: ['-1', '-1', '-1', '-1', '-1'],
       range: '24h',
       orderby: '-user.display',
+      queryDataset: 'discover',
     },
   });
 
@@ -1230,6 +1233,7 @@ describe('Results', function () {
           widths: ['-1', '-1', '-1', '-1', '-1'],
           range: '24h',
           orderby: '-user.display',
+          queryDataset: 'discover',
         },
       });
       const organization = OrganizationFixture({
@@ -1287,16 +1291,15 @@ describe('Results', function () {
     });
 
     it('Changes the Use as Discover button to a reset button for prebuilt query', async () => {
+      const organization = OrganizationFixture({
+        features: ['discover-basic', 'discover-query'],
+      });
       MockApiClient.addMockResponse({
         url: '/organizations/org-slug/discover/homepage/',
         method: 'PUT',
         statusCode: 200,
-        body: {...TRANSACTION_VIEWS[0], name: ''},
+        body: {...getTransactionViews(organization)[0], name: ''},
       });
-      const organization = OrganizationFixture({
-        features: ['discover-basic', 'discover-query'],
-      });
-
       const {router} = initializeOrg({
         organization,
         router: {
@@ -1304,7 +1307,7 @@ describe('Results', function () {
             ...LocationFixture(),
             query: {
               ...EventView.fromNewQueryWithLocation(
-                TRANSACTION_VIEWS[0],
+                getTransactionViews(organization)[0],
                 LocationFixture()
               ).generateQueryStringObject(),
             },
@@ -1326,7 +1329,7 @@ describe('Results', function () {
         {router: router, organization}
       );
 
-      await screen.findAllByText(TRANSACTION_VIEWS[0].name);
+      await screen.findAllByText(getTransactionViews(organization)[0].name);
       await userEvent.click(screen.getByText('Set as Default'));
       expect(await screen.findByText('Remove Default')).toBeInTheDocument();
 
@@ -1499,6 +1502,243 @@ describe('Results', function () {
       });
 
       expect(screen.queryByText(/Based on your search criteria/)).not.toBeInTheDocument();
+    });
+
+    it('uses split decision to populate dataset selector', async function () {
+      const organization = OrganizationFixture({
+        features: [
+          'discover-basic',
+          'discover-query',
+          'performance-discover-dataset-selector',
+        ],
+      });
+
+      const {router} = initializeOrg({
+        organization,
+        router: {
+          location: {query: {id: '1'}},
+        },
+      });
+
+      ProjectsStore.loadInitialData([ProjectFixture()]);
+
+      const mockRequests = renderMockRequests();
+
+      render(
+        <Results
+          organization={organization}
+          location={router.location}
+          router={router}
+          loading={false}
+          setSavedQuery={jest.fn()}
+        />,
+        {
+          router: router,
+          organization,
+        }
+      );
+
+      await waitFor(() => {
+        expect(mockRequests.measurementsMetaMock).toHaveBeenCalled();
+      });
+      expect(mockRequests.eventsResultsMock).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', {name: 'Dataset Transactions'})
+        ).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText(
+          "We're splitting our datasets up to make it a bit easier to digest. We defaulted this query to Transactions. Edit as you see fit."
+        )
+      ).toBeInTheDocument();
+
+      expect(screen.queryByText('Save Changes')).not.toBeInTheDocument();
+    });
+
+    it('calls events endpoint with the right dataset', async function () {
+      const organization = OrganizationFixture({
+        features: [
+          'discover-basic',
+          'discover-query',
+          'performance-discover-dataset-selector',
+        ],
+      });
+
+      const {router} = initializeOrg({
+        organization,
+        router: {
+          location: {query: {id: '1'}},
+        },
+      });
+
+      ProjectsStore.loadInitialData([ProjectFixture()]);
+
+      const mockRequests = renderMockRequests();
+
+      MockApiClient.addMockResponse({
+        url: '/organizations/org-slug/discover/saved/1/',
+        method: 'GET',
+        statusCode: 200,
+        body: {
+          id: '1',
+          name: 'new',
+          projects: [],
+          version: 2,
+          expired: false,
+          dateCreated: '2021-04-08T17:53:25.195782Z',
+          dateUpdated: '2021-04-09T12:13:18.567264Z',
+          createdBy: {
+            id: '2',
+          },
+          environment: [],
+          fields: ['title', 'event.type', 'project', 'user.display', 'timestamp'],
+          widths: ['-1', '-1', '-1', '-1', '-1'],
+          range: '24h',
+          orderby: '-user.display',
+          queryDataset: 'error-events',
+        },
+      });
+
+      render(
+        <Results
+          organization={organization}
+          location={router.location}
+          router={router}
+          loading={false}
+          setSavedQuery={jest.fn()}
+        />,
+        {
+          router: router,
+          organization,
+        }
+      );
+
+      await waitFor(() => {
+        expect(mockRequests.measurementsMetaMock).toHaveBeenCalled();
+      });
+      expect(mockRequests.eventsResultsMock).toHaveBeenCalledTimes(1);
+
+      expect(screen.getByRole('button', {name: 'Dataset Errors'})).toBeInTheDocument();
+
+      expect(mockRequests.eventsStatsMock).toHaveBeenCalledWith(
+        '/organizations/org-slug/events-stats/',
+        expect.objectContaining({
+          query: expect.objectContaining({
+            dataset: 'errors',
+          }),
+        })
+      );
+
+      expect(mockRequests.eventsResultsMock).toHaveBeenCalledWith(
+        '/organizations/org-slug/events/',
+        expect.objectContaining({
+          query: expect.objectContaining({
+            dataset: 'errors',
+          }),
+        })
+      );
+
+      expect(mockRequests.eventsMetaMock).toHaveBeenCalledWith(
+        '/organizations/org-slug/events-meta/',
+        expect.objectContaining({
+          query: expect.objectContaining({
+            dataset: 'errors',
+          }),
+        })
+      );
+    });
+
+    it('does not automatically append dataset with selector feature disabled', async function () {
+      const organization = OrganizationFixture({
+        features: ['discover-basic', 'discover-query'],
+      });
+
+      const {router} = initializeOrg({
+        organization,
+        router: {
+          location: {query: {id: '1'}},
+        },
+      });
+
+      ProjectsStore.loadInitialData([ProjectFixture()]);
+
+      const mockRequests = renderMockRequests();
+
+      MockApiClient.addMockResponse({
+        url: '/organizations/org-slug/discover/saved/1/',
+        method: 'GET',
+        statusCode: 200,
+        body: {
+          id: '1',
+          name: 'new',
+          projects: [],
+          version: 2,
+          expired: false,
+          dateCreated: '2021-04-08T17:53:25.195782Z',
+          dateUpdated: '2021-04-09T12:13:18.567264Z',
+          createdBy: {
+            id: '2',
+          },
+          environment: [],
+          fields: ['title', 'event.type', 'project', 'user.display', 'timestamp'],
+          widths: ['-1', '-1', '-1', '-1', '-1'],
+          range: '24h',
+          orderby: '-user.display',
+          queryDataset: 'error-events',
+        },
+      });
+
+      render(
+        <Results
+          organization={organization}
+          location={router.location}
+          router={router}
+          loading={false}
+          setSavedQuery={jest.fn()}
+        />,
+        {
+          router: router,
+          organization,
+        }
+      );
+
+      await waitFor(() => {
+        expect(mockRequests.measurementsMetaMock).toHaveBeenCalled();
+      });
+      expect(mockRequests.eventsResultsMock).toHaveBeenCalledTimes(1);
+
+      expect(
+        screen.queryByRole('button', {name: 'Dataset Errors'})
+      ).not.toBeInTheDocument();
+
+      expect(mockRequests.eventsStatsMock).toHaveBeenCalledWith(
+        '/organizations/org-slug/events-stats/',
+        expect.objectContaining({
+          query: expect.not.objectContaining({
+            dataset: 'errors',
+          }),
+        })
+      );
+
+      expect(mockRequests.eventsResultsMock).toHaveBeenCalledWith(
+        '/organizations/org-slug/events/',
+        expect.objectContaining({
+          query: expect.not.objectContaining({
+            dataset: 'errors',
+          }),
+        })
+      );
+
+      expect(mockRequests.eventsMetaMock).toHaveBeenCalledWith(
+        '/organizations/org-slug/events-meta/',
+        expect.objectContaining({
+          query: expect.not.objectContaining({
+            dataset: 'errors',
+          }),
+        })
+      );
     });
   });
 });

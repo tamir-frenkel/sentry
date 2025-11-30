@@ -3,7 +3,7 @@ import color from 'color';
 
 import {DATA_CATEGORY_INFO} from 'sentry/constants';
 import {CHART_PALETTE} from 'sentry/constants/chartPalette';
-import {Outcome} from 'sentry/types';
+import {Outcome} from 'sentry/types/core';
 
 const lightColors = {
   black: '#1D1127',
@@ -424,9 +424,12 @@ const dataCategory = {
  * Default colors for data usage outcomes
  */
 const outcome = {
-  [Outcome.ACCEPTED]: CHART_PALETTE[0][0],
-  [Outcome.FILTERED]: CHART_PALETTE[1][1],
-  [Outcome.DROPPED]: CHART_PALETTE[5][3],
+  [Outcome.ACCEPTED]: CHART_PALETTE[5][0], // #444674 - chart 100
+  [Outcome.FILTERED]: CHART_PALETTE[5][2], // #B85586 - chart 300
+  [Outcome.RATE_LIMITED]: CHART_PALETTE[5][3], // #E9626E - chart 400
+  [Outcome.INVALID]: CHART_PALETTE[5][4], // #F58C46 - chart 500
+  [Outcome.CLIENT_DISCARD]: CHART_PALETTE[5][5], // #F2B712 - chart 600
+  [Outcome.DROPPED]: CHART_PALETTE[5][3], // #F58C46 - chart 500
 };
 
 const generateAlertTheme = (colors: BaseColors, alias: Aliases) => ({
@@ -490,6 +493,11 @@ const generateBadgeTheme = (colors: BaseColors) => ({
     color: colors.white,
   },
   experimental: {
+    background: colors.gray100,
+    indicatorColor: colors.gray100,
+    color: colors.gray500,
+  },
+  internal: {
     background: colors.gray100,
     indicatorColor: colors.gray100,
     color: colors.gray500,
@@ -652,17 +660,27 @@ const generatePrismVariables = (
     ...prismColors,
   });
 
+const iconNumberSizes = {
+  xs: 12,
+  sm: 14,
+  md: 18,
+  lg: 24,
+  xl: 32,
+  xxl: 72,
+} as const;
+
 const iconSizes = {
-  xs: '12px',
-  sm: '14px',
-  md: '18px',
-  lg: '24px',
-  xl: '32px',
-  xxl: '72px',
-};
+  xs: `${iconNumberSizes.xs}px`,
+  sm: `${iconNumberSizes.sm}px`,
+  md: `${iconNumberSizes.md}px`,
+  lg: `${iconNumberSizes.lg}px`,
+  xl: `${iconNumberSizes.xl}px`,
+  xxl: `${iconNumberSizes.xxl}px`,
+} as const;
 
 const commonTheme = {
   breakpoints: {
+    xsmall: '500px',
     small: '800px',
     medium: '992px',
     large: '1200px',
@@ -675,6 +693,7 @@ const commonTheme = {
   ...lightShadows,
 
   iconSizes,
+  iconNumberSizes,
 
   iconDirections: {
     up: '0',
@@ -725,6 +744,7 @@ const commonTheme = {
 
     // If you change modal also update shared-components.less
     // as the z-index for bootstrap modals lives there.
+    drawer: 9999,
     modal: 10000,
     toast: 10001,
 
@@ -776,7 +796,7 @@ const commonTheme = {
 
     containerWidth: '1440px',
     headerHeight: '61px',
-    sidebarWidth: '236px',
+    sidebarWidth: '220px',
   },
 
   sidebar: {
@@ -786,7 +806,7 @@ const commonTheme = {
     badgeSize: '22px',
     smallBadgeSize: '11px',
     collapsedWidth: '70px',
-    expandedWidth: '236px',
+    expandedWidth: '220px',
     mobileHeight: '54px',
     menuSpacing: '15px',
   },

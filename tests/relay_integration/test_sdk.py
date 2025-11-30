@@ -4,11 +4,10 @@ from unittest import mock
 import pytest
 import sentry_sdk
 from django.test.utils import override_settings
-from sentry_sdk import Hub, push_scope
+from sentry_sdk import isolation_scope
 
 from sentry import eventstore
 from sentry.eventstore.models import Event
-from sentry.models.userrole import manage_default_super_admin_role
 from sentry.receivers import create_default_projects
 from sentry.silo.base import SiloMode
 from sentry.testutils.asserts import assert_mock_called_once_with_partial
@@ -16,6 +15,7 @@ from sentry.testutils.pytest.fixtures import django_db_all
 from sentry.testutils.pytest.relay import adjust_settings_for_relay_tests
 from sentry.testutils.silo import assume_test_silo_mode, no_silo_test
 from sentry.testutils.skips import requires_kafka
+from sentry.users.models.userrole import manage_default_super_admin_role
 from sentry.utils.sdk import bind_organization_context, configure_sdk
 
 pytestmark = [requires_kafka]
@@ -91,7 +91,7 @@ def test_encoding(settings, post_event_with_sdk):
     class NotJSONSerializable:
         pass
 
-    with push_scope() as scope:
+    with isolation_scope() as scope:
         scope.set_extra("request", NotJSONSerializable())
         event = post_event_with_sdk({"message": "check the req"})
 
@@ -108,9 +108,10 @@ def test_bind_organization_context(default_organization):
 
     bind_organization_context(default_organization)
 
-    assert Hub.current.scope._tags["organization"] == default_organization.id
-    assert Hub.current.scope._tags["organization.slug"] == default_organization.slug
-    assert Hub.current.scope._contexts["organization"] == {
+    scope = sentry_sdk.Scope.get_isolation_scope()
+    assert scope._tags["organization"] == default_organization.id
+    assert scope._tags["organization.slug"] == default_organization.slug
+    assert scope._contexts["organization"] == {
         "id": default_organization.id,
         "slug": default_organization.slug,
     }
@@ -128,7 +129,9 @@ def test_bind_organization_context_with_callback(default_organization):
 
     with override_settings(SENTRY_ORGANIZATION_CONTEXT_HELPER=add_context):
         bind_organization_context(default_organization)
-        assert Hub.current.scope._tags["organization.test"] == "1"
+
+        scope = sentry_sdk.Scope.get_isolation_scope()
+        assert scope._tags["organization.test"] == "1"
 
 
 @no_silo_test
@@ -142,4 +145,6 @@ def test_bind_organization_context_with_callback_error(default_organization):
 
     with override_settings(SENTRY_ORGANIZATION_CONTEXT_HELPER=add_context):
         bind_organization_context(default_organization)
-        assert Hub.current.scope._tags["organization"] == default_organization.id
+
+        scope = sentry_sdk.Scope.get_isolation_scope()
+        assert scope._tags["organization"] == default_organization.id

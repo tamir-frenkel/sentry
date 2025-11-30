@@ -9,15 +9,15 @@ import {openConfirmModal} from 'sentry/components/confirm';
 import type {MenuItemProps} from 'sentry/components/dropdownMenu';
 import {DropdownMenu} from 'sentry/components/dropdownMenu';
 import {isWidgetViewerPath} from 'sentry/components/modals/widgetViewerModal/utils';
-import {IconEdit, IconEllipsis, IconExpand} from 'sentry/icons';
+import {IconEllipsis, IconExpand} from 'sentry/icons';
 import {t} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
-import type {Organization, PageFilters} from 'sentry/types';
+import type {PageFilters} from 'sentry/types/core';
 import type {Series} from 'sentry/types/echarts';
+import type {Organization} from 'sentry/types/organization';
 import {trackAnalytics} from 'sentry/utils/analytics';
 import type {TableDataWithTitle} from 'sentry/utils/discover/discoverQuery';
 import type {AggregationOutputType} from 'sentry/utils/discover/fields';
-import {hasMetricsExperimentalFeature} from 'sentry/utils/metrics/features';
 import {
   MEPConsumer,
   MEPState,
@@ -26,6 +26,7 @@ import {
   getWidgetDiscoverUrl,
   getWidgetIssueUrl,
   getWidgetMetricsUrl,
+  hasDatasetSelector,
 } from 'sentry/views/dashboards/utils';
 
 import type {Widget} from '../types';
@@ -74,6 +75,7 @@ function WidgetCardContextMenu({
   seriesResultsType,
 }: Props) {
   const {isMetricsData} = useDashboardsMEPContext();
+
   if (!showContextMenu) {
     return null;
   }
@@ -91,14 +93,6 @@ function WidgetCardContextMenu({
       });
     }
   };
-
-  const openWidgetViewerIcon =
-    hasMetricsExperimentalFeature(organization) &&
-    widget.widgetType === WidgetType.METRICS ? (
-      <IconEdit />
-    ) : (
-      <IconExpand />
-    );
 
   if (isPreview) {
     return (
@@ -141,7 +135,7 @@ function WidgetCardContextMenu({
                   aria-label={t('Open Widget Viewer')}
                   borderless
                   size="xs"
-                  icon={openWidgetViewerIcon}
+                  icon={<IconExpand />}
                   onClick={() => {
                     (seriesData || tableData) &&
                       setData({
@@ -164,8 +158,13 @@ function WidgetCardContextMenu({
 
   if (
     organization.features.includes('discover-basic') &&
-    widget.widgetType === WidgetType.DISCOVER
+    widget.widgetType &&
+    [WidgetType.DISCOVER, WidgetType.ERRORS, WidgetType.TRANSACTIONS].includes(
+      widget.widgetType
+    )
   ) {
+    const optionDisabled =
+      hasDatasetSelector(organization) && widget.widgetType === WidgetType.DISCOVER;
     // Open Widget in Discover
     if (widget.queries.length) {
       const discoverPath = getWidgetDiscoverUrl(
@@ -178,7 +177,17 @@ function WidgetCardContextMenu({
       menuOptions.push({
         key: 'open-in-discover',
         label: t('Open in Discover'),
-        to: widget.queries.length === 1 ? discoverPath : undefined,
+        to: optionDisabled
+          ? undefined
+          : widget.queries.length === 1
+            ? discoverPath
+            : undefined,
+        tooltip: t(
+          'We are splitting datasets to make them easier to digest. Please confirm the dataset for this widget by clicking Edit Widget.'
+        ),
+        tooltipOptions: {disabled: !optionDisabled},
+        disabled: optionDisabled,
+        showDetailsInOverlay: true,
         onAction: () => {
           if (widget.queries.length === 1) {
             trackAnalytics('dashboards_views.open_in_discover.opened', {
@@ -283,7 +292,7 @@ function WidgetCardContextMenu({
                 aria-label={t('Open Widget Viewer')}
                 borderless
                 size="xs"
-                icon={openWidgetViewerIcon}
+                icon={<IconExpand />}
                 onClick={() => {
                   setData({
                     seriesData,

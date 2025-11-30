@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import orjson
@@ -16,11 +16,14 @@ from sentry.api.api_publish_status import ApiPublishStatus
 from sentry.api.base import region_silo_endpoint
 from sentry.api.bases.group import GroupEndpoint
 from sentry.api.serializers import EventSerializer, serialize
-from sentry.autofix.utils import get_autofix_repos_from_project_code_mappings
+from sentry.autofix.utils import get_autofix_repos_from_project_code_mappings, get_autofix_state
+from sentry.integrations.utils.code_mapping import get_sorted_code_mapping_configs
 from sentry.models.group import Group
-from sentry.models.user import User
-from sentry.services.hybrid_cloud.user.service import user_service
+from sentry.seer.signed_seer_api import sign_with_seer_secret
+from sentry.tasks.autofix import check_autofix_status
 from sentry.types.ratelimit import RateLimit, RateLimitCategory
+from sentry.users.models.user import User
+from sentry.users.services.user.service import user_service
 
 logger = logging.getLogger(__name__)
 
@@ -85,57 +88,54 @@ class GroupAutofixEndpoint(GroupEndpoint):
         instruction: str,
         timeout_secs: int,
     ):
-        response = requests.post(
-            f"{settings.SEER_AUTOFIX_URL}/v1/automation/autofix/start",
-            data=orjson.dumps(
-                {
-                    "organization_id": group.organization.id,
-                    "project_id": group.project.id,
-                    "repos": repos,
-                    "issue": {
-                        "id": group.id,
-                        "title": group.title,
-                        "short_id": group.qualified_short_id,
-                        "events": [serialized_event],
-                    },
-                    "instruction": instruction,
-                    "timeout_secs": timeout_secs,
-                    "last_updated": datetime.now().isoformat(),
-                    "invoking_user": (
-                        {
-                            "id": user.id,
-                            "display_name": user.get_display_name(),
-                        }
-                        if not isinstance(user, AnonymousUser)
-                        else None
-                    ),
+        path = "/v1/automation/autofix/start"
+        body = orjson.dumps(
+            {
+                "organization_id": group.organization.id,
+                "project_id": group.project.id,
+                "repos": repos,
+                "issue": {
+                    "id": group.id,
+                    "title": group.title,
+                    "short_id": group.qualified_short_id,
+                    "events": [serialized_event],
                 },
-                option=orjson.OPT_NON_STR_KEYS,
-            ),
-            headers={"content-type": "application/json;charset=utf-8"},
+                "instruction": instruction,
+                "timeout_secs": timeout_secs,
+                "last_updated": datetime.now().isoformat(),
+                "invoking_user": (
+                    {
+                        "id": user.id,
+                        "display_name": user.get_display_name(),
+                    }
+                    if not isinstance(user, AnonymousUser)
+                    else None
+                ),
+                "options": {
+                    "disable_codebase_indexing": features.has(
+                        "organizations:autofix-disable-codebase-indexing",
+                        group.organization,
+                        actor=user,
+                    )
+                },
+            },
+            option=orjson.OPT_NON_STR_KEYS,
         )
-
-        response.raise_for_status()
-
-    def _call_get_autofix_state(self, group_id: int) -> dict[str, Any] | None:
         response = requests.post(
-            f"{settings.SEER_AUTOFIX_URL}/v1/automation/autofix/state",
-            data=orjson.dumps(
-                {
-                    "group_id": group_id,
-                }
-            ),
-            headers={"content-type": "application/json;charset=utf-8"},
+            f"{settings.SEER_AUTOFIX_URL}{path}",
+            data=body,
+            headers={
+                "content-type": "application/json;charset=utf-8",
+                **sign_with_seer_secret(
+                    url=f"{settings.SEER_AUTOFIX_URL}{path}",
+                    body=body,
+                ),
+            },
         )
 
         response.raise_for_status()
 
-        result = response.json()
-
-        if result and result["group_id"] == group_id:
-            return result["state"]
-
-        return None
+        return response.json().get("run_id")
 
     def post(self, request: Request, group: Group) -> Response:
         data = orjson.loads(request.body)
@@ -179,7 +179,7 @@ class GroupAutofixEndpoint(GroupEndpoint):
             )
 
         try:
-            self._call_autofix(
+            run_id = self._call_autofix(
                 request.user,
                 group,
                 repos,
@@ -202,15 +202,20 @@ class GroupAutofixEndpoint(GroupEndpoint):
                 500,
             )
 
+        check_autofix_status.apply_async(args=[run_id], countdown=timedelta(minutes=15).seconds)
+
         return Response(
             status=202,
         )
 
     def get(self, request: Request, group: Group) -> Response:
-        autofix_state = self._call_get_autofix_state(group.id)
+        autofix_state = get_autofix_state(group_id=group.id)
+
+        response_state: dict[str, Any] | None = None
 
         if autofix_state:
-            user_ids = autofix_state.get("actor_ids", [])
+            response_state = autofix_state.dict()
+            user_ids = autofix_state.actor_ids
             if user_ids:
                 users = user_service.serialize_many(
                     filter={"user_ids": user_ids, "organization_id": request.organization.id},
@@ -219,6 +224,23 @@ class GroupAutofixEndpoint(GroupEndpoint):
 
                 users_map = {user["id"]: user for user in users}
 
-                autofix_state["users"] = users_map
+                response_state["users"] = users_map
 
-        return Response({"autofix": autofix_state})
+            project = group.project
+            repositories = []
+            if project:
+                code_mappings = get_sorted_code_mapping_configs(project=project)
+                for mapping in code_mappings:
+                    repo = mapping.repository
+                    repositories.append(
+                        {
+                            "url": repo.url,
+                            "external_id": repo.external_id,
+                            "name": repo.name,
+                            "provider": repo.provider,
+                            "default_branch": mapping.default_branch,
+                        }
+                    )
+            response_state["repositories"] = repositories
+
+        return Response({"autofix": response_state})

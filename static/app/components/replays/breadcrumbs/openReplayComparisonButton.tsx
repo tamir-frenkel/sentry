@@ -14,17 +14,19 @@ const LazyComparisonModal = lazy(
 
 interface Props {
   children: ReactNode;
-  leftTimestamp: number;
+  leftOffsetMs: number;
   replay: null | ReplayReader;
-  rightTimestamp: number;
+  rightOffsetMs: number;
+  surface: string;
   size?: ButtonProps['size'];
 }
 
 export function OpenReplayComparisonButton({
   children,
-  leftTimestamp,
+  leftOffsetMs,
   replay,
-  rightTimestamp,
+  rightOffsetMs,
+  surface,
   size,
 }: Props) {
   const organization = useOrganization();
@@ -33,8 +35,9 @@ export function OpenReplayComparisonButton({
     <Button
       role="button"
       size={size}
-      analyticsEventKey="replay.details-hydration-modal-opened"
-      analyticsEventName="Replay Details Hydration Modal Opened"
+      analyticsEventKey="replay.hydration-modal.opened"
+      analyticsEventName="Hydration Modal Opened"
+      analyticsParams={{surface, organization}}
       onClick={event => {
         event.stopPropagation();
         openModal(
@@ -59,8 +62,8 @@ export function OpenReplayComparisonButton({
               <LazyComparisonModal
                 replay={replay}
                 organization={organization}
-                leftTimestamp={leftTimestamp}
-                rightTimestamp={rightTimestamp}
+                leftOffsetMs={leftOffsetMs}
+                rightOffsetMs={rightOffsetMs}
                 {...deps}
               />
             </Suspense>

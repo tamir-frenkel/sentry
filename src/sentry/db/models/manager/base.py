@@ -6,17 +6,18 @@ import weakref
 from collections.abc import Callable, Collection, Generator, Mapping, MutableMapping, Sequence
 from contextlib import contextmanager
 from enum import IntEnum, auto
-from typing import Any, Generic
+from typing import Any
 
 from django.conf import settings
 from django.db import models, router
 from django.db.models import Model
 from django.db.models.fields import Field
-from django.db.models.manager import BaseManager as DjangoBaseManager
+from django.db.models.manager import Manager as DjangoBaseManager
 from django.db.models.signals import class_prepared, post_delete, post_init, post_save
+from django.utils.encoding import smart_str
 
-from sentry.db.models.manager import M, make_key
 from sentry.db.models.manager.base_query_set import BaseQuerySet
+from sentry.db.models.manager.types import M
 from sentry.db.models.query import create_or_update
 from sentry.db.postgres.transactions import django_test_transaction_water_mark
 from sentry.silo.base import SiloLimit
@@ -44,7 +45,34 @@ class ModelManagerTriggerCondition(IntEnum):
 ModelManagerTriggerAction = Callable[[type[Model]], None]
 
 
-class BaseManager(DjangoBaseManager.from_queryset(BaseQuerySet), Generic[M]):  # type: ignore[misc]
+def __prep_value(model: Any, key: str, value: Model | int | str) -> str:
+    val = value
+    if isinstance(value, Model):
+        val = value.pk
+    return str(val)
+
+
+def __prep_key(model: Any, key: str) -> str:
+    if key == "pk":
+        return str(model._meta.pk.name)
+    return key
+
+
+def make_key(model: Any, prefix: str, kwargs: Mapping[str, Model | int | str]) -> str:
+    kwargs_bits = []
+    for k, v in sorted(kwargs.items()):
+        k = __prep_key(model, k)
+        v = smart_str(__prep_value(model, k, v))
+        kwargs_bits.append(f"{k}={v}")
+    kwargs_bits_str = ":".join(kwargs_bits)
+
+    return f"{prefix}:{model.__name__}:{md5_text(kwargs_bits_str).hexdigest()}"
+
+
+_base_manager_base = DjangoBaseManager.from_queryset(BaseQuerySet, "_base_manager_base")
+
+
+class BaseManager(_base_manager_base[M]):
     lookup_handlers = {"iexact": lambda x: x.upper()}
     use_for_related_fields = True
 
@@ -75,7 +103,7 @@ class BaseManager(DjangoBaseManager.from_queryset(BaseQuerySet), Generic[M]):  #
 
     @staticmethod
     @contextmanager
-    def local_cache() -> Generator[None, None, None]:
+    def local_cache() -> Generator[None]:
         """Enables local caching for the entire process."""
         global _local_cache_enabled, _local_cache_generation
         if _local_cache_enabled:
@@ -457,7 +485,7 @@ class BaseManager(DjangoBaseManager.from_queryset(BaseQuerySet), Generic[M]):  #
         cache_key = self.__get_lookup_cache_key(**{pk_name: instance_id})
         cache.delete(cache_key, version=self.cache_version)
 
-    def post_save(self, instance: M, **kwargs: Any) -> None:  # type: ignore[misc]  # python/mypy#6178
+    def post_save(self, *, instance: M, created: bool, **kwargs: object) -> None:  # type: ignore[misc]  # python/mypy#6178
         """
         Triggered when a model bound to this manager is saved.
         """
@@ -485,7 +513,7 @@ class BaseManager(DjangoBaseManager.from_queryset(BaseQuerySet), Generic[M]):  #
     @contextmanager
     def register_trigger(
         self, condition: ModelManagerTriggerCondition, action: ModelManagerTriggerAction
-    ) -> Generator[None, None, None]:
+    ) -> Generator[None]:
         """Register a callback for when an operation is executed inside the context.
 
         There is no guarantee whether the action will be called before or after the

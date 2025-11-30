@@ -8,6 +8,7 @@ from django.core import signing
 from django.test import override_settings
 from django.utils import timezone
 
+from sentry.auth.services.auth.model import RpcAuthState, RpcMemberSsoState
 from sentry.auth.superuser import (
     COOKIE_DOMAIN,
     COOKIE_HTTPONLY,
@@ -31,7 +32,6 @@ from sentry.auth.superuser import (
 from sentry.auth.system import SystemToken
 from sentry.middleware.placeholder import placeholder_get_response
 from sentry.middleware.superuser import SuperuserMiddleware
-from sentry.services.hybrid_cloud.auth.model import RpcAuthState, RpcMemberSsoState
 from sentry.testutils.cases import TestCase
 from sentry.testutils.helpers.datetime import freeze_time
 from sentry.testutils.helpers.options import override_options
@@ -472,13 +472,29 @@ class SuperuserTestCase(TestCase):
             sso_state=RpcMemberSsoState(), permissions=["superuser.write"]
         )
 
-        assert get_superuser_scopes(auth_state, user) == SUPERUSER_SCOPES
-        assert get_superuser_scopes(auth_state_with_write, user) == SUPERUSER_SCOPES
+        assert (
+            get_superuser_scopes(auth_state, user, organization_context=self.organization)
+            == SUPERUSER_SCOPES
+        )
+        assert (
+            get_superuser_scopes(
+                auth_state_with_write, user, organization_context=self.organization
+            )
+            == SUPERUSER_SCOPES
+        )
 
         # test scope separation
         with self.options({"superuser.read-write.ga-rollout": True}):
-            assert get_superuser_scopes(auth_state, user) == SUPERUSER_READONLY_SCOPES
-            assert get_superuser_scopes(auth_state_with_write, user) == SUPERUSER_SCOPES
+            assert (
+                get_superuser_scopes(auth_state, user, organization_context=self.organization)
+                == SUPERUSER_READONLY_SCOPES
+            )
+            assert (
+                get_superuser_scopes(
+                    auth_state_with_write, user, organization_context=self.organization
+                )
+                == SUPERUSER_SCOPES
+            )
 
     def test_superuser_scopes_self_hosted(self):
         # self hosted always has superuser write scopes
@@ -490,12 +506,28 @@ class SuperuserTestCase(TestCase):
             sso_state=RpcMemberSsoState(), permissions=["superuser.write"]
         )
 
-        assert get_superuser_scopes(auth_state, user) == SUPERUSER_SCOPES
-        assert get_superuser_scopes(auth_state_with_write, user) == SUPERUSER_SCOPES
+        assert (
+            get_superuser_scopes(auth_state, user, organization_context=self.organization)
+            == SUPERUSER_SCOPES
+        )
+        assert (
+            get_superuser_scopes(
+                auth_state_with_write, user, organization_context=self.organization
+            )
+            == SUPERUSER_SCOPES
+        )
 
         with self.feature({"superuser.read-write.ga-rollout": True}):
-            assert get_superuser_scopes(auth_state, user) == SUPERUSER_SCOPES
-            assert get_superuser_scopes(auth_state_with_write, user) == SUPERUSER_SCOPES
+            assert (
+                get_superuser_scopes(auth_state, user, organization_context=self.organization)
+                == SUPERUSER_SCOPES
+            )
+            assert (
+                get_superuser_scopes(
+                    auth_state_with_write, user, organization_context=self.organization
+                )
+                == SUPERUSER_SCOPES
+            )
 
     @override_settings(SENTRY_SELF_HOSTED=False)
     def test_superuser_has_permission(self):

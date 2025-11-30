@@ -26,14 +26,14 @@ from sentry.models.integrations.sentry_app_installation_for_provider import (
 from sentry.models.organization import Organization
 from sentry.models.organizationmember import OrganizationMember
 from sentry.models.team import Team
-from sentry.models.user import User
-from sentry.services.hybrid_cloud.organization import organization_service
+from sentry.organizations.services.organization import organization_service
 from sentry.signals import receivers_raise_on_send
 from sentry.silo.base import SiloMode
 from sentry.testutils.cases import AuthProviderTestCase, PermissionTestCase
 from sentry.testutils.helpers.features import with_feature
 from sentry.testutils.outbox import outbox_runner
 from sentry.testutils.silo import assume_test_silo_mode, assume_test_silo_mode_of, control_silo_test
+from sentry.users.models.user import User
 from sentry.web.frontend.organization_auth_settings import get_scim_url
 
 
@@ -230,7 +230,7 @@ class OrganizationAuthSettingsTest(AuthProviderTestCase):
         ).exists()
         assert not logger.info.called
 
-    @with_feature("organizations:customer-domains")
+    @with_feature("system:multi-region")
     @patch("sentry.auth.helper.logger")
     def test_basic_flow_customer_domain(self, logger):
         organization, auth_provider = self.create_org_and_auth_provider()

@@ -68,7 +68,7 @@ def issue_occurrence_options() -> list[click.Option]:
         click.Option(
             ["--mode", "mode"],
             type=click.Choice(["batched-parallel", "parallel"]),
-            default="parallel",
+            default="batched-parallel",
             help="The mode to process occurrences in. Batched-parallel uses batched in parallel to guarantee messages are processed in order per group, parallel uses multi-processing.",
         ),
     ]
@@ -150,6 +150,13 @@ def ingest_events_options() -> list[click.Option]:
             type=bool,
             is_flag=True,
             default=False,
+        )
+    )
+    options.append(
+        click.Option(
+            ["--stop-at-timestamp", "stop_at_timestamp"],
+            type=int,
+            help="Unix timestamp after which to stop processing messages",
         )
     )
     return options
@@ -304,6 +311,15 @@ KAFKA_CONSUMERS: Mapping[str, ConsumerDefinition] = {
         "dlq_topic": Topic.INGEST_ATTACHMENTS_DLQ,
     },
     "ingest-transactions": {
+        "topic": Topic.INGEST_TRANSACTIONS,
+        "strategy_factory": "sentry.ingest.consumer.factory.IngestStrategyFactory",
+        "click_options": ingest_events_options(),
+        "static_args": {
+            "consumer_type": ConsumerType.Transactions,
+        },
+        "dlq_topic": Topic.INGEST_TRANSACTIONS_DLQ,
+    },
+    "ingest-transactions-inc847": {
         "topic": Topic.INGEST_TRANSACTIONS,
         "strategy_factory": "sentry.ingest.consumer.factory.IngestStrategyFactory",
         "click_options": ingest_events_options(),

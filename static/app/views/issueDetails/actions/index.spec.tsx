@@ -15,7 +15,7 @@ import {
 import GlobalModal from 'sentry/components/globalModal';
 import ConfigStore from 'sentry/stores/configStore';
 import ModalStore from 'sentry/stores/modalStore';
-import {GroupStatus, IssueCategory} from 'sentry/types';
+import {GroupStatus, IssueCategory} from 'sentry/types/group';
 import * as analytics from 'sentry/utils/analytics';
 import {browserHistory} from 'sentry/utils/browserHistory';
 import GroupActions from 'sentry/views/issueDetails/actions';
@@ -44,7 +44,6 @@ describe('GroupActions', function () {
 
   beforeEach(function () {
     ConfigStore.init();
-    jest.spyOn(ConfigStore, 'get').mockImplementation(() => []);
   });
   afterEach(function () {
     MockApiClient.clearMockResponses();
@@ -250,7 +249,7 @@ describe('GroupActions', function () {
 
     expect(deleteMock).toHaveBeenCalled();
     expect(browserHistory.push).toHaveBeenCalledWith({
-      pathname: `/organizations/${organization.slug}/issues/`,
+      pathname: `/organizations/${org.slug}/issues/`,
       query: {project: project.id},
     });
   });

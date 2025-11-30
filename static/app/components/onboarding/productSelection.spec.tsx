@@ -9,10 +9,15 @@ import {
   ProductSelection,
   ProductSolution,
 } from 'sentry/components/onboarding/productSelection';
+import ConfigStore from 'sentry/stores/configStore';
 
 describe('Onboarding Product Selection', function () {
   const organization = OrganizationFixture({
     features: ['session-replay', 'performance-view', 'profiling-view'],
+  });
+
+  beforeEach(function () {
+    ConfigStore.init();
   });
 
   it('renders default state', async function () {
@@ -55,18 +60,18 @@ describe('Onboarding Product Selection', function () {
     await userEvent.click(screen.getByRole('checkbox', {name: 'Error Monitoring'}));
     await waitFor(() => expect(router.push).not.toHaveBeenCalled());
 
-    // Performance monitoring shall be checked and enabled by default
-    expect(screen.getByRole('checkbox', {name: 'Performance Monitoring'})).toBeChecked();
-    expect(screen.getByRole('checkbox', {name: 'Performance Monitoring'})).toBeEnabled();
+    // Tracing shall be checked and enabled by default
+    expect(screen.getByRole('checkbox', {name: 'Tracing'})).toBeChecked();
+    expect(screen.getByRole('checkbox', {name: 'Tracing'})).toBeEnabled();
 
     // Tooltip with explanation shall be displayed on hover
-    await userEvent.hover(screen.getByRole('checkbox', {name: 'Performance Monitoring'}));
+    await userEvent.hover(screen.getByRole('checkbox', {name: 'Tracing'}));
     expect(
       await screen.findByText(/Automatic performance issue detection/)
     ).toBeInTheDocument();
 
-    // Uncheck performance monitoring
-    await userEvent.click(screen.getByRole('checkbox', {name: 'Performance Monitoring'}));
+    // Uncheck tracing
+    await userEvent.click(screen.getByRole('checkbox', {name: 'Tracing'}));
     await waitFor(() =>
       expect(router.replace).toHaveBeenCalledWith({
         pathname: undefined,
@@ -167,12 +172,10 @@ describe('Onboarding Product Selection', function () {
       }
     );
 
-    // Performance Monitoring shall be unchecked and disabled by default
-    expect(screen.getByRole('checkbox', {name: 'Performance Monitoring'})).toBeDisabled();
-    expect(
-      screen.getByRole('checkbox', {name: 'Performance Monitoring'})
-    ).not.toBeChecked();
-    await userEvent.hover(screen.getByRole('checkbox', {name: 'Performance Monitoring'}));
+    // Tracing shall be unchecked and disabled by default
+    expect(screen.getByRole('checkbox', {name: 'Tracing'})).toBeDisabled();
+    expect(screen.getByRole('checkbox', {name: 'Tracing'})).not.toBeChecked();
+    await userEvent.hover(screen.getByRole('checkbox', {name: 'Tracing'}));
 
     // A tooltip with explanation why the option is disabled shall be displayed on hover
     expect(
@@ -180,9 +183,9 @@ describe('Onboarding Product Selection', function () {
         disabledProducts[ProductSolution.PERFORMANCE_MONITORING].reason
       )
     ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('checkbox', {name: 'Performance Monitoring'}));
+    await userEvent.click(screen.getByRole('checkbox', {name: 'Tracing'}));
 
-    // Try to uncheck performance monitoring
+    // Try to uncheck tracing
     await waitFor(() => expect(router.push).not.toHaveBeenCalled());
   });
 
@@ -242,6 +245,34 @@ describe('Onboarding Product Selection', function () {
         },
       })
     );
+  });
+
+  it('renders with non-errors features disabled for errors only self-hosted', function () {
+    platformProductAvailability['javascript-react'] = [
+      ProductSolution.PERFORMANCE_MONITORING,
+      ProductSolution.SESSION_REPLAY,
+    ];
+
+    const {router} = initializeOrg({
+      router: {
+        location: {
+          query: {product: [ProductSolution.SESSION_REPLAY]},
+        },
+        params: {},
+      },
+    });
+
+    ConfigStore.set('isSelfHostedErrorsOnly', true);
+
+    render(<ProductSelection organization={organization} platform="javascript-react" />, {
+      router,
+    });
+
+    expect(screen.getByRole('checkbox', {name: 'Error Monitoring'})).toBeEnabled();
+
+    expect(screen.getByRole('checkbox', {name: 'Tracing'})).toBeDisabled();
+
+    expect(screen.getByRole('checkbox', {name: 'Session Replay'})).toBeDisabled();
   });
 
   it('renders npm & yarn info text', function () {

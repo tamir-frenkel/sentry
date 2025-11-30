@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from sentry.models.project import Project
     from sentry.models.team import Team
     from sentry.ownership.grammar import Rule
-    from sentry.services.hybrid_cloud.user import RpcUser
+    from sentry.users.services.user import RpcUser
 
 logger = logging.getLogger(__name__)
 
@@ -334,8 +334,8 @@ def handle_group_owners(
     """
     from sentry.models.groupowner import GroupOwner, GroupOwnerType, OwnerRuleType
     from sentry.models.team import Team
-    from sentry.models.user import User
-    from sentry.services.hybrid_cloud.user import RpcUser
+    from sentry.users.models.user import User
+    from sentry.users.services.user import RpcUser
 
     lock = locks.get(f"groupowner-bulk:{group.id}", duration=10, name="groupowner_bulk")
     logging_params = {
@@ -819,15 +819,21 @@ def process_inbox_adds(job: PostProcessJob) -> None:
             not is_reprocessed and not has_reappeared
         ):  # If true, we added the .ONGOING reason already
             if is_new:
-                updated = (
-                    Group.objects.filter(id=event.group.id)
-                    .exclude(substatus=GroupSubStatus.NEW)
-                    .update(status=GroupStatus.UNRESOLVED, substatus=GroupSubStatus.NEW)
+                group = Group.objects.filter(id=event.group.id).exclude(
+                    substatus=GroupSubStatus.NEW
                 )
+                if group.exists():
+                    logger.warning(
+                        "incorrect_substatus: Found NEW group with incorrect substatus",
+                        extra={"group_id": event.group.id, "substatus": event.group.substatus},
+                    )
+
+                updated = group.update(status=GroupStatus.UNRESOLVED, substatus=GroupSubStatus.NEW)
                 if updated:
                     event.group.status = GroupStatus.UNRESOLVED
                     event.group.substatus = GroupSubStatus.NEW
-                    add_group_to_inbox(event.group, GroupInboxReason.NEW)
+
+                add_group_to_inbox(event.group, GroupInboxReason.NEW)
             elif is_regression:
                 # we don't need to update the group since that should've already been
                 # handled on event ingest
@@ -865,10 +871,7 @@ def process_snoozes(job: PostProcessJob) -> None:
 
     # groups less than a day old should use the new -> escalating logic
     group_age_hours = (timezone.now() - group.first_seen).total_seconds() / 3600
-    should_use_new_escalation_logic = (
-        group_age_hours < MAX_NEW_ESCALATION_AGE_HOURS
-        and features.has("projects:first-event-severity-new-escalation", group.project)
-    )
+    should_use_new_escalation_logic = group_age_hours < MAX_NEW_ESCALATION_AGE_HOURS
     # Check if group is escalating
     if (
         not should_use_new_escalation_logic
@@ -1108,7 +1111,7 @@ def process_commits(job: PostProcessJob) -> None:
                 )
                 has_integrations = cache.get(integration_cache_key)
                 if has_integrations is None:
-                    from sentry.services.hybrid_cloud.integration import integration_service
+                    from sentry.integrations.services.integration import integration_service
 
                     org_integrations = integration_service.get_organization_integrations(
                         organization_id=event.project.organization_id,
@@ -1420,6 +1423,7 @@ def link_event_to_user_report(job: PostProcessJob) -> None:
                 project,
                 FeedbackCreationSource.USER_REPORT_ENVELOPE,
             )
+            metrics.incr("event_manager.save._update_user_reports_with_event_link.shim_to_feedback")
 
         user_reports_updated = user_reports_without_group.update(
             group_id=group.id, environment_id=event.get_environment().id
@@ -1455,9 +1459,7 @@ def detect_new_escalation(job: PostProcessJob):
     from sentry.types.activity import ActivityType
 
     group = job["event"].group
-    if not group or not features.has(
-        "projects:first-event-severity-new-escalation", job["event"].project
-    ):
+    if not group:
         return
     extra = {
         "org_id": group.organization.id,
@@ -1512,6 +1514,13 @@ def detect_new_escalation(job: PostProcessJob):
         return
 
 
+def detect_base_urls_for_uptime(job: PostProcessJob):
+    from sentry.uptime.detectors.detector import detect_base_url_for_project
+
+    url = get_path(job["event"].data, "request", "url")
+    detect_base_url_for_project(job["event"].project, url)
+
+
 GROUP_CATEGORY_POST_PROCESS_PIPELINE = {
     GroupCategory.ERROR: [
         _capture_group_stats,
@@ -1533,6 +1542,7 @@ GROUP_CATEGORY_POST_PROCESS_PIPELINE = {
         sdk_crash_monitoring,
         process_replay_link,
         link_event_to_user_report,
+        detect_base_urls_for_uptime,
     ],
     GroupCategory.FEEDBACK: [
         feedback_filter_decorator(process_snoozes),

@@ -33,13 +33,16 @@ from sentry.exceptions import IncompatibleMetricsQuery, InvalidSearchQuery
 from sentry.models.dashboard_widget import DashboardWidgetQueryOnDemand
 from sentry.models.organization import Organization
 from sentry.search.events import constants, fields
-from sentry.search.events.builder import QueryBuilder
+from sentry.search.events.builder.base import BaseQueryBuilder
 from sentry.search.events.builder.utils import (
     adjust_datetime_to_granularity,
     optimal_granularity_for_date_range,
     remove_hours,
     remove_minutes,
 )
+from sentry.search.events.datasets.base import DatasetConfig
+from sentry.search.events.datasets.metrics import MetricsDatasetConfig
+from sentry.search.events.datasets.metrics_layer import MetricsLayerDatasetConfig
 from sentry.search.events.fields import get_function_alias
 from sentry.search.events.filter import ParsedTerms
 from sentry.search.events.types import (
@@ -49,8 +52,10 @@ from sentry.search.events.types import (
     QueryBuilderConfig,
     QueryFramework,
     SelectType,
+    SnubaParams,
     WhereType,
 )
+from sentry.search.utils import parse_query
 from sentry.sentry_metrics import indexer
 from sentry.sentry_metrics.use_case_id_registry import UseCaseID
 from sentry.snuba.dataset import Dataset
@@ -66,19 +71,20 @@ from sentry.snuba.metrics.extraction import (
 from sentry.snuba.metrics.fields import histogram as metrics_histogram
 from sentry.snuba.metrics.naming_layer.mri import extract_use_case_id, is_mri
 from sentry.snuba.metrics.query import (
+    DeprecatingMetricsQuery,
     MetricField,
     MetricGroupByField,
     MetricOrderByField,
-    MetricsQuery,
 )
 from sentry.snuba.metrics.utils import get_num_intervals
+from sentry.snuba.query_sources import QuerySource
 from sentry.utils.snuba import DATASETS, bulk_snuba_queries, raw_snql_query
 
 
-class MetricsQueryBuilder(QueryBuilder):
+class MetricsQueryBuilder(BaseQueryBuilder):
     requires_organization_condition = True
-    is_alerts_query = False
 
+    duration_fields = {"transaction.duration"}
     organization_column: str = "organization_id"
 
     column_remapping = {
@@ -116,6 +122,8 @@ class MetricsQueryBuilder(QueryBuilder):
         self._indexer_cache: dict[str, int | None] = {}
         self._use_default_tags: bool | None = None
         self._has_nullable: bool = False
+        self._is_spans_metrics_query_cache: bool | None = None
+        self._is_unsupported_metrics_layer_query_cache: bool | None = None
         # always true if this is being called
         config.has_metrics = True
         assert dataset is None or dataset in [Dataset.PerformanceMetrics, Dataset.Metrics]
@@ -131,18 +139,28 @@ class MetricsQueryBuilder(QueryBuilder):
             **kwargs,
         )
 
-        org_id = self.filter_params.get("organization_id")
-        if org_id is None and self.params.organization is not None:
-            org_id = self.params.organization.id
-        if org_id is None or not isinstance(org_id, int):
+        if self.organization_id is None:
             raise InvalidSearchQuery("Organization id required to create a metrics query")
 
         sentry_sdk.set_tag("on_demand_metrics.type", config.on_demand_metrics_type)
         sentry_sdk.set_tag("on_demand_metrics.enabled", config.on_demand_metrics_enabled)
-        self.organization_id: int = org_id
+
+    def load_config(self) -> DatasetConfig:
+        if hasattr(self, "config_class") and self.config_class is not None:
+            return super().load_config()
+
+        if self.dataset in [Dataset.Metrics, Dataset.PerformanceMetrics]:
+            if self.use_metrics_layer:
+                return MetricsLayerDatasetConfig(self)
+            else:
+                return MetricsDatasetConfig(self)
+        else:
+            raise NotImplementedError(f"Data Set configuration not found for {self.dataset}.")
 
     @property
     def use_default_tags(self) -> bool:
+        if self.is_spans_metrics_query:
+            return False
         if self._use_default_tags is None:
             if self.params.organization is not None:
                 self._use_default_tags = features.has(
@@ -177,7 +195,7 @@ class MetricsQueryBuilder(QueryBuilder):
             dashboard_widget_query__widget__dashboard__organization_id=self.organization_id,
         )
         if any(not entry.extraction_enabled() for entry in on_demand_entries):
-            with sentry_sdk.push_scope() as scope:
+            with sentry_sdk.isolation_scope() as scope:
                 scope.set_extra("entries", on_demand_entries)
                 scope.set_extra("hash", query_hash)
                 sentry_sdk.capture_message(
@@ -244,14 +262,13 @@ class MetricsQueryBuilder(QueryBuilder):
         if not self.builder_config.on_demand_metrics_enabled:
             return None
 
-        aggregate_columns = self.selected_columns
-        map = {
-            col: self._get_on_demand_metric_spec(col)
-            for col in aggregate_columns
-            # Replace with proper table code later
-            if fields.is_function(col) and self._get_on_demand_metric_spec(col)
-        }
-        return map
+        spec_map = {}
+        for col in self.selected_columns:
+            spec = self._get_on_demand_metric_spec(col)
+            if fields.is_function(col) and spec:
+                spec_map[col] = spec
+
+        return spec_map
 
     def convert_spec_to_metric_field(self, spec: OnDemandMetricSpec) -> MetricField:
         if isinstance(self, (TopMetricsQueryBuilder, TimeseriesMetricQueryBuilder)):
@@ -271,7 +288,7 @@ class MetricsQueryBuilder(QueryBuilder):
         # Where normally isn't accepted for on-demand since it should only encoded into the metric
         # but in the case of top events, etc. there is need for another where condition dynamically for top N groups.
         additional_where: Sequence[Condition] | None = None,
-    ) -> MetricsQuery:
+    ) -> DeprecatingMetricsQuery:
         if self.params.organization is None:
             raise InvalidSearchQuery("An on demand metrics query requires an organization")
 
@@ -337,7 +354,7 @@ class MetricsQueryBuilder(QueryBuilder):
         if additional_where:
             where.extend(additional_where)
 
-        return MetricsQuery(
+        return DeprecatingMetricsQuery(
             select=[self.convert_spec_to_metric_field(spec)],
             where=where,
             limit=limit,
@@ -361,13 +378,62 @@ class MetricsQueryBuilder(QueryBuilder):
             super().validate_aggregate_arguments()
 
     @property
+    def is_spans_metrics_query(self) -> bool:
+        """This property is used to determine if a query is using at least one of the fields in the spans namespace."""
+        if self._is_spans_metrics_query_cache is not None:
+            return self._is_spans_metrics_query_cache
+        if self.query is not None:
+            tags = parse_query(
+                self.params.projects, self.query, self.params.user, self.params.environments
+            )["tags"]
+            for tag in tags:
+                if tag in constants.SPANS_METRICS_TAGS:
+                    self._is_spans_metrics_query_cache = True
+                    return True
+        for column in self.selected_columns:
+            # Not using parse_function since it checks against function_converter
+            # which is not loaded yet and we also do not need it
+            match = fields.is_function(column)
+            func = match.group("function") if match else None
+            if func in constants.SPANS_METRICS_FUNCTIONS:
+                self._is_spans_metrics_query_cache = True
+                return True
+            argument = match.group("columns") if match else None
+            if argument in constants.SPAN_METRICS_MAP.keys() - constants.METRICS_MAP.keys():
+                self._is_spans_metrics_query_cache = True
+                return True
+        self._is_spans_metrics_query_cache = False
+        return False
+
+    @property
+    def is_unsupported_metrics_layer_query(self) -> bool:
+        """Some fields and functions cannot be translated to metrics layer queries.
+        This property is used to determine if a query is using at least one of these fields or functions, and if so, we must not use the metrics layer.
+        """
+        if self._is_unsupported_metrics_layer_query_cache is not None:
+            return self._is_unsupported_metrics_layer_query_cache
+        if self.is_spans_metrics_query:
+            self._is_unsupported_metrics_layer_query_cache = True
+            return True
+        for column in self.selected_columns:
+            # Not using parse_function since it checks against function_converter
+            # which is not loaded yet and we also do not need it
+            match = fields.is_function(column)
+            func = match.group("function") if match else None
+            if func in constants.METRICS_LAYER_UNSUPPORTED_TRANSACTION_METRICS_FUNCTIONS:
+                self._is_unsupported_metrics_layer_query_cache = True
+                return True
+        self._is_unsupported_metrics_layer_query_cache = False
+        return False
+
+    @property
     def is_performance(self) -> bool:
         return self.dataset is Dataset.PerformanceMetrics
 
     @property
     def use_case_id(self) -> UseCaseID:
 
-        if self.spans_metrics_builder:
+        if self.spans_metrics_builder or self.is_spans_metrics_query:
             return UseCaseID.SPANS
         elif self.is_performance:
             return UseCaseID.TRANSACTIONS
@@ -380,6 +446,11 @@ class MetricsQueryBuilder(QueryBuilder):
     def use_metrics_layer(self) -> bool:
         # We want to use the metrics layer only for normal metrics, since span metrics are currently
         # NOT supported.
+        if (
+            self.builder_config.insights_metrics_override_metric_layer
+            and self.is_unsupported_metrics_layer_query
+        ):
+            return False
         return self.builder_config.use_metrics_layer and not self.spans_metrics_builder
 
     def resolve_query(
@@ -663,7 +734,11 @@ class MetricsQueryBuilder(QueryBuilder):
     def resolve_metric_index(self, value: str) -> int | None:
         """Layer on top of the metric indexer so we'll only hit it at most once per value"""
         if value not in self._indexer_cache:
-            result = indexer.resolve(self.use_case_id, self.organization_id, value)
+            result = indexer.resolve(
+                self.use_case_id,
+                self.organization_id,
+                value,
+            )
             self._indexer_cache[value] = result
 
         return self._indexer_cache[value]
@@ -1029,7 +1104,7 @@ class MetricsQueryBuilder(QueryBuilder):
 
         return metric_layer_result
 
-    def use_case_id_from_metrics_query(self, metrics_query: MetricsQuery) -> UseCaseID:
+    def use_case_id_from_metrics_query(self, metrics_query: DeprecatingMetricsQuery) -> UseCaseID:
         """
         Extracts the use case from the `MetricsQuery` which has to be executed in the metrics layer.
 
@@ -1097,7 +1172,9 @@ class MetricsQueryBuilder(QueryBuilder):
                 )
         return result
 
-    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
+    def run_query(
+        self, referrer: str, use_cache: bool = False, query_source: QuerySource | None = None
+    ) -> Any:
         groupbys = self.groupby
         if not groupbys and self.use_on_demand:
             # Need this otherwise top_events returns only 1 item
@@ -1200,7 +1277,7 @@ class MetricsQueryBuilder(QueryBuilder):
                                     self.get_metrics_layer_snql_query(
                                         query_details, extra_conditions
                                     ),
-                                    self.is_alerts_query,
+                                    isinstance(self, AlertMetricsQueryBuilder),
                                 )
                             )
                     metrics_data = []
@@ -1302,9 +1379,10 @@ class MetricsQueryBuilder(QueryBuilder):
                     tenant_ids=self.tenant_ids,
                 )
                 current_result = raw_snql_query(
-                    request,
-                    f"{referrer}.{referrer_suffix}",
-                    use_cache,
+                    request=request,
+                    referrer=f"{referrer}.{referrer_suffix}",
+                    query_source=query_source,
+                    use_cache=use_cache,
                 )
                 for meta in current_result["meta"]:
                     meta_dict[meta["name"]] = meta["type"]
@@ -1407,8 +1485,6 @@ class MetricsQueryBuilder(QueryBuilder):
 
 
 class AlertMetricsQueryBuilder(MetricsQueryBuilder):
-    is_alerts_query = True
-
     def __init__(
         self,
         *args: Any,
@@ -1449,7 +1525,7 @@ class AlertMetricsQueryBuilder(MetricsQueryBuilder):
             else:
                 intermediate_query = self.get_metrics_layer_snql_query()
                 metrics_query = transform_mqb_query_to_metrics_query(
-                    intermediate_query, is_alerts_query=self.is_alerts_query
+                    intermediate_query, is_alerts_query=isinstance(self, AlertMetricsQueryBuilder)
                 )
 
             snuba_queries, _ = SnubaQueryBuilder(
@@ -1536,6 +1612,7 @@ class TimeseriesMetricQueryBuilder(MetricsQueryBuilder):
         self,
         params: ParamsType,
         interval: int,
+        snuba_params: SnubaParams | None = None,
         dataset: Dataset | None = None,
         query: str | None = None,
         selected_columns: list[str] | None = None,
@@ -1548,6 +1625,7 @@ class TimeseriesMetricQueryBuilder(MetricsQueryBuilder):
         config.auto_fields = False
         super().__init__(
             params=params,
+            snuba_params=snuba_params,
             query=query,
             dataset=dataset,
             selected_columns=selected_columns,
@@ -1688,7 +1766,9 @@ class TimeseriesMetricQueryBuilder(MetricsQueryBuilder):
 
         return queries
 
-    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
+    def run_query(
+        self, referrer: str, use_cache: bool = False, query_source: QuerySource | None = None
+    ) -> Any:
         if self.use_metrics_layer or self.use_on_demand:
             from sentry.snuba.metrics.datasource import get_series
             from sentry.snuba.metrics.mqb_query_transformer import (
@@ -1710,7 +1790,9 @@ class TimeseriesMetricQueryBuilder(MetricsQueryBuilder):
                     elif self.use_metrics_layer:
                         snuba_query = self.get_snql_query()[0].query
                         metrics_queries.append(
-                            transform_mqb_query_to_metrics_query(snuba_query, self.is_alerts_query)
+                            transform_mqb_query_to_metrics_query(
+                                snuba_query, isinstance(self, AlertMetricsQueryBuilder)
+                            )
                         )
                 metrics_data = []
                 with sentry_sdk.start_span(op="metric_layer", description="run_query"):
@@ -1734,7 +1816,7 @@ class TimeseriesMetricQueryBuilder(MetricsQueryBuilder):
 
         queries = self.get_snql_query()
         if queries:
-            results = bulk_snuba_queries(queries, referrer, use_cache)
+            results = bulk_snuba_queries(queries, referrer, use_cache, query_source=query_source)
         else:
             results = []
 
@@ -1819,6 +1901,7 @@ class TopMetricsQueryBuilder(TimeseriesMetricQueryBuilder):
         params: ParamsType,
         interval: int,
         top_events: list[dict[str, Any]],
+        snuba_params: SnubaParams | None = None,
         other: bool = False,
         query: str | None = None,
         selected_columns: list[str] | None = None,
@@ -1833,6 +1916,7 @@ class TopMetricsQueryBuilder(TimeseriesMetricQueryBuilder):
         super().__init__(
             dataset=dataset,
             params=params,
+            snuba_params=snuba_params,
             interval=interval,
             query=query,
             selected_columns=list(set(selected_columns + timeseries_columns)),
@@ -1942,7 +2026,9 @@ class TopMetricsQueryBuilder(TimeseriesMetricQueryBuilder):
 
         return final_condition
 
-    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
+    def run_query(
+        self, referrer: str, use_cache: bool = False, query_source: QuerySource | None = None
+    ) -> Any:
         result = {}
         results = []
         meta_dict = {}
@@ -1981,7 +2067,9 @@ class TopMetricsQueryBuilder(TimeseriesMetricQueryBuilder):
                     elif self.use_metrics_layer:
                         snuba_query = self.get_snql_query()[0].query
                         metrics_queries.append(
-                            transform_mqb_query_to_metrics_query(snuba_query, self.is_alerts_query)
+                            transform_mqb_query_to_metrics_query(
+                                snuba_query, isinstance(self, AlertMetricsQueryBuilder)
+                            )
                         )
                 metrics_data = []
                 for metrics_query in metrics_queries:
@@ -2008,7 +2096,9 @@ class TopMetricsQueryBuilder(TimeseriesMetricQueryBuilder):
         else:
             queries = self.get_snql_query()
             if queries:
-                results = bulk_snuba_queries(queries, referrer, use_cache)
+                results = bulk_snuba_queries(
+                    queries, referrer, use_cache, query_source=query_source
+                )
 
             time_map: dict[str, dict[str, Any]] = defaultdict(dict)
             for current_result in results:

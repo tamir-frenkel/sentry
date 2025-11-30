@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from django.conf import settings
 from django.db.models.signals import pre_save
@@ -25,6 +25,7 @@ from sentry.apidocs.examples.issue_alert_examples import IssueAlertExamples
 from sentry.apidocs.parameters import GlobalParams
 from sentry.apidocs.utils import inline_sentry_response_serializer
 from sentry.constants import ObjectStatus
+from sentry.integrations.slack.tasks.find_channel_id_for_rule import find_channel_id_for_rule
 from sentry.integrations.slack.utils import RedisRuleStatus
 from sentry.mediators.project_rules.creator import Creator
 from sentry.models.rule import Rule, RuleActivity, RuleActivityType
@@ -32,7 +33,6 @@ from sentry.rules.actions import trigger_sentry_app_action_creators_for_issues
 from sentry.rules.actions.base import instantiate_action
 from sentry.rules.processing.processor import is_condition_slow
 from sentry.signals import alert_rule_created
-from sentry.tasks.integrations.slack import find_channel_id_for_rule
 from sentry.utils import metrics
 
 
@@ -81,12 +81,12 @@ class DuplicateRuleEvaluator:
         """
         rule.data will supersede rule_data if passed in
         """
-        self._project_id: int = project_id
-        self._rule_data: dict[Any, Any] = rule.data if rule else rule_data
-        self._rule_id: int | None = rule_id
-        self._rule: Rule | None = rule
+        self._project_id = project_id
+        self._rule_data = rule.data if rule else rule_data or {}
+        self._rule_id = rule_id
+        self._rule = rule
 
-        self._keys_to_check: set[str] = self._get_keys_to_check()
+        self._keys_to_check = self._get_keys_to_check()
 
         self._matcher_funcs_by_key: dict[str, Callable[[Rule, str], MatcherResult]] = {
             self.ENVIRONMENT_KEY: self._environment_matcher,
@@ -99,9 +99,7 @@ class DuplicateRuleEvaluator:
         Some keys are ignored as they are not part of the logic.
         Some keys are required to check, and are added on top.
         """
-        keys_to_check: set[str] = {
-            key for key in list(self._rule_data.keys()) if key not in self.EXCLUDED_FIELDS
-        }
+        keys_to_check = {key for key in self._rule_data if key not in self.EXCLUDED_FIELDS}
         keys_to_check.update(self.SPECIAL_FIELDS)
 
         return keys_to_check
@@ -238,9 +236,12 @@ class DuplicateRuleEvaluator:
         """
         Determines whether specified rule already exists, and if it does, returns it.
         """
-        existing_rules = Rule.objects.exclude(id=self._rule_id).filter(
-            project__id=self._project_id, status=ObjectStatus.ACTIVE
-        )
+        if self._rule_id is None:
+            all_rules = Rule.objects.all()
+        else:
+            all_rules = Rule.objects.exclude(id=self._rule_id)
+
+        existing_rules = all_rules.filter(project__id=self._project_id, status=ObjectStatus.ACTIVE)
         for existing_rule in existing_rules:
             keys_checked = 0
             keys_matched = 0
@@ -271,6 +272,21 @@ def find_duplicate_rule(project, rule_data=None, rule_id=None, rule=None):
         rule=rule,
     )
     return evaluator.find_duplicate()
+
+
+def get_max_alerts(project, kind: Literal["slow", "fast"]) -> int:
+    if kind == "slow":
+        if features.has("organizations:more-slow-alerts", project.organization):
+            return settings.MAX_MORE_SLOW_CONDITION_ISSUE_ALERTS
+
+        return settings.MAX_SLOW_CONDITION_ISSUE_ALERTS
+
+    has_more_fast_alerts = features.has("organizations:more-fast-alerts", project.organization)
+
+    if has_more_fast_alerts:
+        return settings.MAX_MORE_FAST_CONDITION_ISSUE_ALERTS
+
+    return settings.MAX_FAST_CONDITION_ISSUE_ALERTS
 
 
 class ProjectRulesPostSerializer(serializers.Serializer):
@@ -770,9 +786,7 @@ class ProjectRulesEndpoint(ProjectEndpoint):
                     break
 
         if new_rule_is_slow:
-            max_slow_alerts = settings.MAX_SLOW_CONDITION_ISSUE_ALERTS
-            if features.has("organizations:more-slow-alerts", project.organization):
-                max_slow_alerts = settings.MAX_MORE_SLOW_CONDITION_ISSUE_ALERTS
+            max_slow_alerts = get_max_alerts(project, "slow")
             if slow_rules >= max_slow_alerts:
                 return Response(
                     {
@@ -782,10 +796,8 @@ class ProjectRulesEndpoint(ProjectEndpoint):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-        if (
-            not new_rule_is_slow
-            and (len(rules) - slow_rules) >= settings.MAX_FAST_CONDITION_ISSUE_ALERTS
-        ):
+
+        if not new_rule_is_slow and (len(rules) - slow_rules) >= get_max_alerts(project, "fast"):
             return Response(
                 {
                     "conditions": [

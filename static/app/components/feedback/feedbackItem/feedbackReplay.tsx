@@ -6,7 +6,9 @@ import Placeholder from 'sentry/components/placeholder';
 import {replayPlatforms} from 'sentry/data/platformCategories';
 import {IconPlay} from 'sentry/icons';
 import {t} from 'sentry/locale';
-import type {Event, Organization, PlatformKey} from 'sentry/types';
+import type {Event} from 'sentry/types/event';
+import type {Organization} from 'sentry/types/organization';
+import type {PlatformKey} from 'sentry/types/project';
 import type {FeedbackIssue} from 'sentry/utils/feedback/types';
 import useReplayCountForFeedbacks from 'sentry/utils/replayCount/useReplayCountForFeedbacks';
 import {useHaveSelectedProjectsSentAnyReplayEvents} from 'sentry/utils/replays/hooks/useReplayOnboarding';
@@ -21,14 +23,15 @@ export default function FeedbackReplay({eventData, feedbackItem, organization}: 
   const {feedbackHasReplay} = useReplayCountForFeedbacks();
   const hasReplayId = feedbackHasReplay(feedbackItem.id);
 
-  // replay ID can be found in two places
+  // replay ID can be found in three places
   const replayId =
     eventData?.contexts?.feedback?.replay_id ??
+    eventData?.contexts?.replay?.replay_id ??
     eventData?.tags?.find(({key}) => key === 'replayId')?.value;
   const {hasSentOneReplay, fetching: isFetchingSentOneReplay} =
     useHaveSelectedProjectsSentAnyReplayEvents();
   const platformSupported = replayPlatforms.includes(
-    feedbackItem.project.platform as PlatformKey
+    feedbackItem.project?.platform as PlatformKey
   );
 
   if (replayId && hasReplayId) {

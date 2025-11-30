@@ -21,8 +21,10 @@ import GroupStore from 'sentry/stores/groupStore';
 import OrganizationStore from 'sentry/stores/organizationStore';
 import ProjectsStore from 'sentry/stores/projectsStore';
 import TeamStore from 'sentry/stores/teamStore';
-import type {Group, Organization as TOrganization, Project} from 'sentry/types';
-import {GroupActivityType, PriorityLevel} from 'sentry/types';
+import type {Group} from 'sentry/types/group';
+import {GroupActivityType, PriorityLevel} from 'sentry/types/group';
+import type {Organization} from 'sentry/types/organization';
+import type {Project} from 'sentry/types/project';
 import GroupActivity from 'sentry/views/issueDetails/groupActivity';
 
 describe('GroupActivity', function () {
@@ -47,7 +49,7 @@ describe('GroupActivity', function () {
     organization: additionalOrg,
   }: {
     activity?: Group['activity'];
-    organization?: TOrganization;
+    organization?: Organization;
   } = {}) {
     const group = GroupFixture({
       id: '1337',
@@ -787,7 +789,6 @@ describe('GroupActivity', function () {
             dateCreated,
           },
         ],
-        organization: OrganizationFixture({features: ['issue-priority-ui']}),
       });
       expect(screen.getAllByTestId('activity-item').at(-1)).toHaveTextContent(
         'Sentry updated the priority value of this issue to be high after it escalated'
@@ -807,7 +808,6 @@ describe('GroupActivity', function () {
             dateCreated,
           },
         ],
-        organization: OrganizationFixture({features: ['issue-priority-ui']}),
       });
       expect(screen.getAllByTestId('activity-item').at(-1)).toHaveTextContent(
         'Sentry updated the priority value of this issue to be low after it was marked as ongoing'

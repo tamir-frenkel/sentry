@@ -40,8 +40,10 @@ import {IconClose, IconEllipsis, IconSearch} from 'sentry/icons';
 import {t} from 'sentry/locale';
 import MemberListStore from 'sentry/stores/memberListStore';
 import {space} from 'sentry/styles/space';
-import type {Organization, Tag, TagCollection, User} from 'sentry/types';
+import type {Tag, TagCollection} from 'sentry/types/group';
 import {SavedSearchType} from 'sentry/types/group';
+import type {Organization} from 'sentry/types/organization';
+import type {User} from 'sentry/types/user';
 import {defined} from 'sentry/utils';
 import {trackAnalytics} from 'sentry/utils/analytics';
 import type {FieldDefinition} from 'sentry/utils/fields';
@@ -140,6 +142,7 @@ const pickParserOptions = (props: Props) => {
     disallowedLogicalOperators,
     disallowWildcard,
     disallowFreeText,
+    disallowNegation,
     invalidMessages,
   } = props;
 
@@ -157,6 +160,7 @@ const pickParserOptions = (props: Props) => {
     disallowedLogicalOperators,
     disallowWildcard,
     disallowFreeText,
+    disallowNegation,
     invalidMessages,
   } satisfies Partial<SearchConfig>;
 };
@@ -264,6 +268,10 @@ type Props = WithRouterProps &
      * Disables free text searches
      */
     disallowFreeText?: boolean;
+    /**
+     * Disables negation searches
+     */
+    disallowNegation?: boolean;
     /**
      * Disables wildcard searches (in freeText and in the value of key:value searches mode)
      */
@@ -1627,7 +1635,10 @@ class SmartSearchBar extends Component<DefaultProps & Props, State> {
 
         // show operator group if at beginning of value
         if (cursor === node.location.start.offset) {
-          const opGroup = generateOpAutocompleteGroup(getValidOps(cursorToken), tagName);
+          const opGroup = generateOpAutocompleteGroup(
+            getValidOps(cursorToken, !!this.props.disallowNegation),
+            tagName
+          );
           if (valueGroup?.type !== ItemType.INVALID_TAG && !isDate) {
             autocompleteGroups.unshift(opGroup);
           }
@@ -1645,7 +1656,10 @@ class SmartSearchBar extends Component<DefaultProps & Props, State> {
         const autocompleteGroups = [await this.generateTagAutocompleteGroup(tagName)];
         // show operator group if at end of key
         if (cursor === node.location.end.offset) {
-          const opGroup = generateOpAutocompleteGroup(getValidOps(cursorToken), tagName);
+          const opGroup = generateOpAutocompleteGroup(
+            getValidOps(cursorToken, !!this.props.disallowNegation),
+            tagName
+          );
           autocompleteGroups.unshift(opGroup);
         }
 
@@ -1660,7 +1674,10 @@ class SmartSearchBar extends Component<DefaultProps & Props, State> {
       }
 
       // show operator autocomplete group
-      const opGroup = generateOpAutocompleteGroup(getValidOps(cursorToken), tagName);
+      const opGroup = generateOpAutocompleteGroup(
+        getValidOps(cursorToken, !!this.props.disallowNegation),
+        tagName
+      );
       this.updateAutoCompleteStateMultiHeader([opGroup]);
       return;
     }

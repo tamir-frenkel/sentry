@@ -7,7 +7,7 @@ import {Button} from 'sentry/components/button';
 import type {SelectOption, SelectSection} from 'sentry/components/compactSelect';
 import {CompactSelect} from 'sentry/components/compactSelect';
 import ErrorBoundary from 'sentry/components/errorBoundary';
-import {EventDataSection} from 'sentry/components/events/eventDataSection';
+import type {EnhancedCrumb} from 'sentry/components/events/breadcrumbs/utils';
 import type {BreadcrumbWithMeta} from 'sentry/components/events/interfaces/breadcrumbs/types';
 import {IconSort} from 'sentry/icons';
 import {t} from 'sentry/locale';
@@ -18,6 +18,8 @@ import {EntryType} from 'sentry/types/event';
 import type {Organization} from 'sentry/types/organization';
 import {defined} from 'sentry/utils';
 import {useLocalStorageState} from 'sentry/utils/useLocalStorageState';
+import {FoldSectionKey} from 'sentry/views/issueDetails/streamline/foldSection';
+import {InterimSection} from 'sentry/views/issueDetails/streamline/interimSection';
 
 import SearchBarAction from '../searchBarAction';
 
@@ -37,24 +39,60 @@ type Props = {
   hideTitle?: boolean;
 };
 
-enum BreadcrumbSort {
+export enum BreadcrumbSort {
   NEWEST = 'newest',
   OLDEST = 'oldest',
 }
 
-const EVENT_BREADCRUMB_SORT_LOCALSTORAGE_KEY = 'event-breadcrumb-sort';
+export const BREADCRUMB_SORT_LOCALSTORAGE_KEY = 'event-breadcrumb-sort';
 
-const sortOptions = [
+export const BREADCRUMB_SORT_OPTIONS = [
   {label: t('Newest'), value: BreadcrumbSort.NEWEST},
   {label: t('Oldest'), value: BreadcrumbSort.OLDEST},
 ];
+
+type BreadcrumbListType = BreadcrumbWithMeta | EnhancedCrumb;
+
+export function applyBreadcrumbSearch<T extends BreadcrumbListType>(
+  breadcrumbs: T[],
+  newSearchTerm: string
+): T[] {
+  if (!newSearchTerm.trim()) {
+    return breadcrumbs;
+  }
+
+  // Slightly hacky, but it works
+  // the string is being `stringify`d here in order to match exactly the same `stringify`d string of the loop
+  const searchFor = JSON.stringify(newSearchTerm)
+    // it replaces double backslash generate by JSON.stringify with single backslash
+    .replace(/((^")|("$))/g, '')
+    .toLocaleLowerCase();
+
+  return breadcrumbs.filter(({breadcrumb}) =>
+    Object.keys(
+      pick(breadcrumb, ['type', 'category', 'message', 'level', 'timestamp', 'data'])
+    ).some(key => {
+      const info = breadcrumb[key];
+
+      if (!defined(info) || !String(info).trim()) {
+        return false;
+      }
+
+      return JSON.stringify(info)
+        .replace(/((^")|("$))/g, '')
+        .toLocaleLowerCase()
+        .trim()
+        .includes(searchFor);
+    })
+  );
+}
 
 function BreadcrumbsContainer({data, event, organization, hideTitle = false}: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSelections, setFilterSelections] = useState<SelectOption<string>[]>([]);
   const [displayRelativeTime, setDisplayRelativeTime] = useState(false);
   const [sort, setSort] = useLocalStorageState<BreadcrumbSort>(
-    EVENT_BREADCRUMB_SORT_LOCALSTORAGE_KEY,
+    BREADCRUMB_SORT_LOCALSTORAGE_KEY,
     BreadcrumbSort.NEWEST
   );
 
@@ -160,37 +198,6 @@ function BreadcrumbsContainer({data, event, organization, hideTitle = false}: Pr
     return filterLevels;
   }
 
-  function applySearchTerm(breadcrumbs: BreadcrumbWithMeta[], newSearchTerm: string) {
-    if (!newSearchTerm.trim()) {
-      return breadcrumbs;
-    }
-
-    // Slightly hacky, but it works
-    // the string is being `stringify`d here in order to match exactly the same `stringify`d string of the loop
-    const searchFor = JSON.stringify(newSearchTerm)
-      // it replaces double backslash generate by JSON.stringify with single backslash
-      .replace(/((^")|("$))/g, '')
-      .toLocaleLowerCase();
-
-    return breadcrumbs.filter(({breadcrumb}) =>
-      Object.keys(
-        pick(breadcrumb, ['type', 'category', 'message', 'level', 'timestamp', 'data'])
-      ).some(key => {
-        const info = breadcrumb[key];
-
-        if (!defined(info) || !String(info).trim()) {
-          return false;
-        }
-
-        return JSON.stringify(info)
-          .replace(/((^")|("$))/g, '')
-          .toLocaleLowerCase()
-          .trim()
-          .includes(searchFor);
-      })
-    );
-  }
-
   function applySelectedFilters(
     breadcrumbs: BreadcrumbWithMeta[],
     selectedFilterOptions: SelectOption<string>[]
@@ -235,7 +242,7 @@ function BreadcrumbsContainer({data, event, organization, hideTitle = false}: Pr
       breadcrumb,
       meta: event._meta?.entries?.[entryIndex]?.data?.values?.[index],
     }));
-    const filteredBreadcrumbs = applySearchTerm(
+    const filteredBreadcrumbs = applyBreadcrumbSearch(
       applySelectedFilters(breadcrumbsWithMeta, filterSelections),
       searchTerm
     );
@@ -301,15 +308,15 @@ function BreadcrumbsContainer({data, event, organization, hideTitle = false}: Pr
           setSort(selectedOption.value);
         }}
         value={sort}
-        options={sortOptions}
+        options={BREADCRUMB_SORT_OPTIONS}
       />
     </SearchAndSortWrapper>
   );
 
   return (
-    <EventDataSection
+    <InterimSection
       showPermalink={!hideTitle}
-      type={EntryType.BREADCRUMBS}
+      type={FoldSectionKey.BREADCRUMBS}
       title={hideTitle ? '' : t('Breadcrumbs')}
       guideTarget="breadcrumbs"
       actions={actions}
@@ -326,7 +333,7 @@ function BreadcrumbsContainer({data, event, organization, hideTitle = false}: Pr
           relativeTime={relativeTime}
         />
       </ErrorBoundary>
-    </EventDataSection>
+    </InterimSection>
   );
 }
 

@@ -12,6 +12,7 @@ from django.core.cache import cache
 from jsonschema import ValidationError
 
 from sentry import eventstore
+from sentry.eventstore.models import Event
 from sentry.eventstore.snuba.backend import SnubaEventStorage
 from sentry.issues.grouptype import PerformanceSlowDBQueryGroupType, ProfileFileIOGroupType
 from sentry.issues.issue_occurrence import IssueOccurrence
@@ -29,7 +30,7 @@ from sentry.models.groupassignee import GroupAssignee
 from sentry.receivers import create_default_projects
 from sentry.testutils.cases import SnubaTestCase, TestCase
 from sentry.testutils.helpers.datetime import before_now, iso_format
-from sentry.testutils.helpers.features import with_feature
+from sentry.testutils.helpers.features import apply_feature_flag_on_cls, with_feature
 from sentry.testutils.pytest.fixtures import django_db_all
 from sentry.types.group import PriorityLevel
 from sentry.utils.samples import load_data
@@ -122,8 +123,10 @@ class IssueOccurrenceProcessMessageTest(IssueOccurrenceTestBase):
         assert occurrence is not None
 
         event = eventstore.backend.get_event_by_id(project_id, event_data["event"]["event_id"])
-        event = event.for_group(event.group)
-        assert event.occurrence_id == occurrence.id
+        assert isinstance(event, Event)
+        assert event.group is not None
+        event_for_group = event.for_group(event.group)
+        assert event_for_group.occurrence_id == occurrence.id
 
         fetched_occurrence = IssueOccurrence.fetch(occurrence.id, project_id)
         assert fetched_occurrence is not None
@@ -177,7 +180,6 @@ class IssueOccurrenceProcessMessageTest(IssueOccurrenceTestBase):
 
         assert Group.objects.filter(grouphash__hash=occurrence.fingerprint[0]).exists()
 
-    @with_feature("projects:issue-priority")
     def test_issue_platform_default_priority(self) -> None:
         # test default priority of LOW
         message = get_test_message(self.project.id)
@@ -189,7 +191,6 @@ class IssueOccurrenceProcessMessageTest(IssueOccurrenceTestBase):
         group = Group.objects.filter(grouphash__hash=occurrence.fingerprint[0]).get()
         assert group.priority == PriorityLevel.LOW
 
-    @with_feature("projects:issue-priority")
     @with_feature("projects:first-event-severity-calculation")
     @mock.patch("sentry.event_manager._get_severity_score")
     def test_issue_platform_override_priority(
@@ -577,3 +578,18 @@ class ParseEventPayloadTest(IssueOccurrenceTestBase):
 
         group = Group.objects.get(id=group.id)
         assert group.status == status
+
+
+@apply_feature_flag_on_cls("organizations:occurence-consumer-prune-status-changes")
+class IssueOccurrenceProcessMessageWithPruningTest(IssueOccurrenceProcessMessageTest):
+    pass
+
+
+@apply_feature_flag_on_cls("organizations:occurence-consumer-prune-status-changes")
+class IssueOccurrenceLookupEventIdWithPruningTest(IssueOccurrenceLookupEventIdTest):
+    pass
+
+
+@apply_feature_flag_on_cls("organizations:occurence-consumer-prune-status-changes")
+class ParseEventPayloadWithPruningTest(ParseEventPayloadTest):
+    pass

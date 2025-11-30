@@ -4,14 +4,14 @@ import styled from '@emotion/styled';
 
 import ErrorBoundary from 'sentry/components/errorBoundary';
 import EventOrGroupTitle from 'sentry/components/eventOrGroupTitle';
-import ErrorLevel from 'sentry/components/events/errorLevel';
 import EventMessage from 'sentry/components/events/eventMessage';
 import GlobalSelectionLink from 'sentry/components/globalSelectionLink';
 import {IconStar} from 'sentry/icons';
 import {tct} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
-import type {Group, GroupTombstoneHelper, Level, Organization} from 'sentry/types';
 import type {Event} from 'sentry/types/event';
+import type {Group, GroupTombstoneHelper} from 'sentry/types/group';
+import type {Organization} from 'sentry/types/organization';
 import {getLocation, getMessage, isTombstone} from 'sentry/utils/events';
 import {useLocation} from 'sentry/utils/useLocation';
 import withOrganization from 'sentry/utils/withOrganization';
@@ -43,20 +43,16 @@ function EventOrGroupHeader({
   query,
   onClick,
   hideIcons,
-  hideLevel,
   eventId,
   grouping = false,
   source,
 }: EventOrGroupHeaderProps) {
   const location = useLocation();
 
-  const hasIssuePriority = organization.features.includes('issue-priority-ui');
-
   function getTitleChildren() {
-    const {level, isBookmarked, hasSeen} = data as Group;
+    const {isBookmarked, hasSeen} = data as Group;
     return (
       <Fragment>
-        {!hideLevel && level && !hasIssuePriority && <GroupLevel level={level} />}
         {!hideIcons && isBookmarked && (
           <IconWrapper>
             <IconStar isSolid color="yellow300" />
@@ -131,7 +127,7 @@ function EventOrGroupHeader({
       <Title>{getTitle()}</Title>
       {eventLocation && <Location>{eventLocation}</Location>}
       <StyledEventMessage
-        level={hasIssuePriority && 'level' in data ? data.level : undefined}
+        level={'level' in data ? data.level : undefined}
         message={getMessage(data)}
         type={data.type}
         levelIndicatorSize="9px"
@@ -188,14 +184,6 @@ const StyledEventMessage = styled(EventMessage)`
 const IconWrapper = styled('span')`
   position: relative;
   margin-right: 5px;
-`;
-
-const GroupLevel = styled(ErrorLevel)<{level: Level}>`
-  position: absolute;
-  left: -1px;
-  width: 9px;
-  height: 15px;
-  border-radius: 0 3px 3px 0;
 `;
 
 const TitleWithLink = styled(GlobalSelectionLink)`

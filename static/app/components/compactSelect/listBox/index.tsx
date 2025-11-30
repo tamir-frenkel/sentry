@@ -70,6 +70,10 @@ interface ListBoxProps
    */
   overlayIsOpen?: boolean;
   /**
+   * When false, hides section headers in the list box.
+   */
+  showSectionHeaders?: boolean;
+  /**
    * Size of the list box and its items.
    */
   size?: FormSize;
@@ -104,6 +108,7 @@ const ListBox = forwardRef<HTMLUListElement, ListBoxProps>(function ListBox(
     hiddenOptions = EMPTY_SET,
     hasSearch,
     overlayIsOpen,
+    showSectionHeaders = true,
     ...props
   }: ListBoxProps,
   forwarderdRef
@@ -134,12 +139,10 @@ const ListBox = forwardRef<HTMLUListElement, ListBoxProps>(function ListBox(
     () =>
       [...listState.collection].filter(node => {
         if (node.type === 'section') {
-          return ![...node.childNodes].every(child =>
-            hiddenOptions.has(child.props.value)
-          );
+          return ![...node.childNodes].every(child => hiddenOptions.has(child.key));
         }
 
-        return !hiddenOptions.has(node.props.value);
+        return !hiddenOptions.has(node.key);
       }),
     [listState.collection, hiddenOptions]
   );
@@ -164,6 +167,7 @@ const ListBox = forwardRef<HTMLUListElement, ListBoxProps>(function ListBox(
                   hiddenOptions={hiddenOptions}
                   onToggle={onSectionToggle}
                   size={size}
+                  showSectionHeaders={showSectionHeaders}
                 />
               );
             }

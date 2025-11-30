@@ -1,17 +1,18 @@
 import {LinkButton} from 'sentry/components/button';
 import type {SpanType} from 'sentry/components/events/interfaces/spans/types';
 import {t, tct} from 'sentry/locale';
-import type {EventTransaction, Organization} from 'sentry/types';
+import type {EventTransaction} from 'sentry/types/event';
+import type {Organization} from 'sentry/types/organization';
 import {trackAnalytics} from 'sentry/utils/analytics';
 import {useLocation} from 'sentry/utils/useLocation';
-import {DATA_TYPE} from 'sentry/views/performance/browser/resources/settings';
+import {DATA_TYPE} from 'sentry/views/insights/browser/resources/settings';
+import {resolveSpanModule} from 'sentry/views/insights/common/utils/resolveSpanModule';
+import {useModuleURL} from 'sentry/views/insights/common/utils/useModuleURL';
+import {ModuleName} from 'sentry/views/insights/types';
 import {
   querySummaryRouteWithQuery,
   resourceSummaryRouteWithQuery,
 } from 'sentry/views/performance/transactionSummary/transactionSpans/spanDetails/utils';
-import {useModuleURL} from 'sentry/views/performance/utils/useModuleURL';
-import {ModuleName} from 'sentry/views/starfish/types';
-import {resolveSpanModule} from 'sentry/views/starfish/utils/resolveSpanModule';
 
 interface Props {
   event: Readonly<EventTransaction>;

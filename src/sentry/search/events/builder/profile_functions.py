@@ -5,7 +5,8 @@ from snuba_sdk.function import Function
 
 from sentry.api.event_search import SearchFilter, SearchKey, SearchValue
 from sentry.discover.arithmetic import categorize_columns
-from sentry.search.events.builder import QueryBuilder, TimeseriesQueryBuilder
+from sentry.search.events.builder.base import BaseQueryBuilder
+from sentry.search.events.builder.discover import TimeseriesQueryBuilder
 from sentry.search.events.datasets.profile_functions import ProfileFunctionsDatasetConfig
 from sentry.search.events.fields import custom_time_processor, get_function_alias
 from sentry.search.events.types import (
@@ -43,14 +44,16 @@ class ProfileFunctionsQueryBuilderMixin:
         return resolved
 
 
-class ProfileFunctionsQueryBuilder(ProfileFunctionsQueryBuilderMixin, QueryBuilder):
+class ProfileFunctionsQueryBuilder(ProfileFunctionsQueryBuilderMixin, BaseQueryBuilder):
     function_alias_prefix = "sentry_"
+    config_class = ProfileFunctionsDatasetConfig
 
 
 class ProfileFunctionsTimeseriesQueryBuilder(
     ProfileFunctionsQueryBuilderMixin, TimeseriesQueryBuilder
 ):
     function_alias_prefix = "sentry_"
+    config_class = ProfileFunctionsDatasetConfig
 
     def strip_alias_prefix(self, result):
         alias_mappings = {
@@ -75,12 +78,15 @@ class ProfileFunctionsTimeseriesQueryBuilder(
 
 
 class ProfileTopFunctionsTimeseriesQueryBuilder(ProfileFunctionsTimeseriesQueryBuilder):
+    config_class = ProfileFunctionsDatasetConfig
+
     def __init__(
         self,
         dataset: Dataset,
         params: ParamsType,
         interval: int,
         top_events: list[dict[str, Any]],
+        snuba_params: SnubaParams | None = None,
         other: bool = False,
         query: str | None = None,
         selected_columns: list[str] | None = None,
@@ -95,6 +101,7 @@ class ProfileTopFunctionsTimeseriesQueryBuilder(ProfileFunctionsTimeseriesQueryB
         super().__init__(
             dataset,
             params,
+            snuba_params=snuba_params,
             interval=interval,
             query=query,
             selected_columns=list(set(selected_columns + timeseries_functions)),

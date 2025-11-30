@@ -10,7 +10,8 @@ import {act, render, screen, userEvent, waitFor} from 'sentry-test/reactTestingL
 import {OnboardingContextProvider} from 'sentry/components/onboarding/onboardingContext';
 import SidebarContainer from 'sentry/components/sidebar';
 import ConfigStore from 'sentry/stores/configStore';
-import type {Organization, StatuspageIncident} from 'sentry/types';
+import type {Organization} from 'sentry/types/organization';
+import type {StatuspageIncident} from 'sentry/types/system';
 import localStorage from 'sentry/utils/localStorage';
 import {useLocation} from 'sentry/utils/useLocation';
 import * as incidentsHook from 'sentry/utils/useServiceIncidents';
@@ -65,7 +66,7 @@ describe('Sidebar', function () {
   };
 
   beforeEach(function () {
-    mockUseLocation.mockReset();
+    mockUseLocation.mockReturnValue(LocationFixture());
     jest.spyOn(incidentsHook, 'useServiceIncidents').mockImplementation(
       () =>
         ({
@@ -85,6 +86,10 @@ describe('Sidebar', function () {
       url: `/organizations/${organization.slug}/sdk-updates/`,
       body: [],
     });
+  });
+
+  afterEach(function () {
+    mockUseLocation.mockReset();
   });
 
   it('renders', async function () {
@@ -301,7 +306,7 @@ describe('Sidebar', function () {
       ConfigStore.set('features', new Set([]));
       ConfigStore.set('user', user);
 
-      mockUseLocation.mockReturnValue(LocationFixture());
+      mockUseLocation.mockReturnValue({...LocationFixture()});
     });
 
     it('renders navigation', async function () {
@@ -346,52 +351,8 @@ describe('Sidebar', function () {
     });
 
     it('in regular mode, also shows links to Performance and Crons', async function () {
-      renderSidebarWithFeatures(ALL_AVAILABLE_FEATURES);
-
-      await waitFor(function () {
-        expect(apiMocks.broadcasts).toHaveBeenCalled();
-      });
-
-      const links = screen.getAllByRole('link');
-      expect(links).toHaveLength(29);
-
-      [
-        'Issues',
-        'Projects',
-        /Performance/,
-        'Queries',
-        'Requests',
-        /Caches/,
-        'Web Vitals',
-        /Queues/,
-        'Screen Loads',
-        'App Starts',
-        'Assets',
-        /Mobile UI/,
-        /Traces/,
-        'Profiling',
-        /Metrics/,
-        'Replays',
-        /LLM Monitoring/,
-        'User Feedback',
-        'Crons',
-        'Alerts',
-        'Discover',
-        'Dashboards',
-        'Releases',
-        'Stats',
-        'Settings',
-        'Help',
-        /What's new/,
-        'Service status',
-      ].forEach((title, index) => {
-        expect(links[index]).toHaveAccessibleName(title);
-      });
-    });
-
-    it('if Insights are on, shows links to Explore and Insights', async function () {
       localStorage.setItem('sidebar-accordion-insights:expanded', 'true');
-      renderSidebarWithFeatures([...ALL_AVAILABLE_FEATURES, 'performance-insights']);
+      renderSidebarWithFeatures([...ALL_AVAILABLE_FEATURES]);
 
       await waitFor(function () {
         expect(apiMocks.broadcasts).toHaveBeenCalled();
@@ -436,16 +397,35 @@ describe('Sidebar', function () {
       });
     });
 
+    it('mobile screens module hides all other mobile modules', async function () {
+      localStorage.setItem('sidebar-accordion-insights:expanded', 'true');
+      renderSidebarWithFeatures([
+        'insights-entry-points',
+        'starfish-mobile-ui-module',
+        'insights-mobile-screens-module',
+      ]);
+
+      await waitFor(function () {
+        expect(apiMocks.broadcasts).toHaveBeenCalled();
+      });
+
+      ['App Starts', 'Screen Loads', /Mobile UI/].forEach(title => {
+        expect(screen.queryByText(title)).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Mobile Screens/)).toBeInTheDocument();
+    });
+
     it('should not render floating accordion when expanded', async () => {
       renderSidebarWithFeatures(ALL_AVAILABLE_FEATURES);
-      await userEvent.click(screen.getByTestId('sidebar-accordion-performance-item'));
+      await userEvent.click(screen.getByTestId('sidebar-accordion-insights-item'));
       expect(screen.queryByTestId('floating-accordion')).not.toBeInTheDocument();
     });
 
     it('should render floating accordion when collapsed', async () => {
       renderSidebarWithFeatures(ALL_AVAILABLE_FEATURES);
       await userEvent.click(screen.getByTestId('sidebar-collapse'));
-      await userEvent.click(screen.getByTestId('sidebar-accordion-performance-item'));
+      await userEvent.click(screen.getByTestId('sidebar-accordion-insights-item'));
       expect(await screen.findByTestId('floating-accordion')).toBeInTheDocument();
     });
   });

@@ -898,6 +898,21 @@ def test_parse_code_owners_with_line_of_spaces():
     )
 
 
+def test_parse_code_owners_rule_with_comments():
+    codeowners = """
+# regular comment
+/path # no owners comment
+/path @getsentry/frontend
+/path @getsentry/issues # inline comment
+/path #team
+    """
+    assert parse_code_owners(codeowners) == (
+        ["@getsentry/frontend", "@getsentry/issues"],
+        ["#team"],
+        [],
+    )
+
+
 def test_convert_codeowners_syntax():
     code_mapping = type("", (), {})()
     code_mapping.stack_root = "webpack://docs"
@@ -979,6 +994,43 @@ codeowners:webpack://static/config/relay/ relay
 codeowners:docs-ui/ docs-sentry ecosystem
 """
     )
+
+
+@pytest.mark.parametrize(
+    "path_details, expected",
+    [
+        (
+            [
+                {"filename": "foo/test.py", "in_app": False},
+                {"abs_path": "/usr/local/src/foo/test.py", "in_app": False},
+            ],
+            False,
+        ),
+        (
+            [
+                {"filename": "foo/test.py", "in_app": True},
+                {"abs_path": "/usr/local/src/foo/test.py", "in_app": True},
+            ],
+            True,
+        ),
+        (
+            [
+                {"filename": "foo/test.py"},
+                {"abs_path": "/usr/local/src/foo/test.py"},
+            ],
+            True,
+        ),
+        (
+            [
+                {"filename": "foo/test.py", "in_app": False},
+                {"abs_path": "/usr/local/src/foo/test.py", "in_app": True},
+            ],
+            True,
+        ),
+    ],
+)
+def test_codeowners_select_in_app_frames_only(path_details, expected):
+    _assert_matcher(Matcher("codeowners", "test.py"), path_details, expected)
 
 
 def test_convert_schema_to_rules_text():

@@ -276,7 +276,7 @@ class BaseTSDB(Service):
             series.append(self.normalize_to_epoch(timestamp, rollup))
             timestamp = timestamp - timedelta(seconds=rollup)
 
-        return rollup, sorted(series)
+        return rollup, series[::-1]
 
     def get_active_series(
         self,
@@ -355,7 +355,6 @@ class BaseTSDB(Service):
         count: int = 1,
         environment_id: int | None = None,
     ) -> None:
-
         """
         Increment project ID=1 and group ID=5:
 
@@ -420,7 +419,7 @@ class BaseTSDB(Service):
         start: datetime,
         end: datetime,
         rollup: int | None = None,
-        environment_ids: list[int] | None = None,
+        environment_ids: Sequence[int] | None = None,
         conditions=None,
         use_cache: bool = False,
         jitter_value: int | None = None,
@@ -478,13 +477,13 @@ class BaseTSDB(Service):
         return series
 
     def rollup(
-        self, values: Mapping[int, Sequence[tuple[float, int]]], rollup: int
-    ) -> dict[int, list[list[float]]]:
+        self, values: Mapping[TSDBKey, Sequence[tuple[float, int]]], rollup: int
+    ) -> dict[TSDBKey, list[list[float]]]:
         """
         Given a set of values (as returned from ``get_range``), roll them up
         using the ``rollup`` time (in seconds).
         """
-        result: dict[int, list[list[float]]] = {}
+        result: dict[TSDBKey, list[list[float]]] = {}
         for key, points in values.items():
             result[key] = []
             last_new_ts = None
@@ -645,7 +644,7 @@ class BaseTSDB(Service):
         limit: int | None = None,
         environment_id: int | None = None,
         tenant_ids: dict[str, str | int] | None = None,
-    ) -> dict[str, Iterable[dict[str, float]]]:
+    ) -> dict[str, list[tuple[int, dict[str, float]]]]:
         """
         Retrieve the most frequently seen items in a frequency table for each
         interval in a series. (This is in contrast with ``get_most_frequent``,
@@ -685,13 +684,13 @@ class BaseTSDB(Service):
     def get_frequency_totals(
         self,
         model: TSDBModel,
-        items: Mapping[str, Sequence[str]],
+        items: Mapping[TSDBKey, Sequence[TSDBItem]],
         start: datetime,
         end: datetime | None = None,
         rollup: int | None = None,
         environment_id: int | None = None,
         tenant_ids: dict[str, str | int] | None = None,
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[TSDBKey, dict[TSDBItem, float]]:
         """
         Retrieve the total frequency of known items in a table over time.
 

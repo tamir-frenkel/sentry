@@ -21,13 +21,10 @@ from sentry.models.dynamicsampling import (
 )
 from sentry.models.organization import Organization
 from sentry.models.project import Project
-from sentry.snuba.metrics.extraction import RuleCondition, SearchQueryConverter, parse_search_query
+from sentry.relay.types import RuleCondition
+from sentry.snuba.metrics.extraction import SearchQueryConverter, parse_search_query
 from sentry.tasks.relay import schedule_invalidate_project_config
-from sentry.utils.dates import parse_stats_period
 
-MAX_RULE_PERIOD_STRING = "6h"
-MAX_RULE_PERIOD = parse_stats_period(MAX_RULE_PERIOD_STRING)
-DEFAULT_PERIOD_STRING = "1h"
 # the number of samples to collect per custom rule
 NUM_SAMPLES_PER_CUSTOM_RULE = 100
 
@@ -50,8 +47,6 @@ class CustomRulesInputSerializer(serializers.Serializer):
 
     # the query string in the same format as the Discover query
     query = serializers.CharField(required=False, allow_blank=True)
-    # desired time period for collection (it may be overriden if too long)
-    period = serializers.CharField(required=False)
     # list of project ids to collect data from
     projects = serializers.ListField(child=serializers.IntegerField(), required=False)
 
@@ -76,20 +71,6 @@ class CustomRulesInputSerializer(serializers.Serializer):
 
         if invalid_projects:
             raise serializers.ValidationError({"projects": invalid_projects})
-
-        period = data.get("period")
-        if period is None:
-            data["period"] = DEFAULT_PERIOD_STRING
-        else:
-            try:
-                period = parse_stats_period(period)
-            except OverflowError:
-                data["period"] = MAX_RULE_PERIOD_STRING
-            if period is None:
-                raise serializers.ValidationError("Invalid period")
-            if period > MAX_RULE_PERIOD:
-                # limit the expiry period
-                data["period"] = MAX_RULE_PERIOD_STRING
 
         return data
 
@@ -293,14 +274,14 @@ def get_rule_condition(query: str | None) -> RuleCondition:
     except UnsupportedSearchQuery as unsupported_ex:
         # log unsupported queries with a different message so that
         # we can differentiate them from other errors
-        with sentry_sdk.push_scope() as scope:
+        with sentry_sdk.isolation_scope() as scope:
             scope.set_extra("query", query)
             scope.set_extra("error", unsupported_ex)
             message = "Unsupported search query"
             sentry_sdk.capture_message(message, level="warning")
         raise
     except Exception as ex:
-        with sentry_sdk.push_scope() as scope:
+        with sentry_sdk.isolation_scope() as scope:
             scope.set_extra("query", query)
             scope.set_extra("error", ex)
             message = "Could not convert query to custom dynamic sampling rule"

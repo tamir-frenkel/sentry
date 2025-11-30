@@ -8,18 +8,17 @@ from django.db import connections, router, transaction
 from django.db.models.signals import post_save
 from django.db.utils import OperationalError, ProgrammingError
 
+from sentry.hybridcloud.models.outbox import outbox_context
 from sentry.loader.dynamic_sdk_options import get_default_loader_data
 from sentry.models.organization import Organization
 from sentry.models.organizationmember import OrganizationMember
-from sentry.models.outbox import outbox_context
 from sentry.models.project import Project
 from sentry.models.projectkey import ProjectKey
 from sentry.models.team import Team
-from sentry.services.hybrid_cloud.user.service import user_service
-from sentry.services.hybrid_cloud.util import region_silo_function
 from sentry.services.organization import organization_provisioning_service
 from sentry.signals import post_upgrade, project_created
-from sentry.silo.base import SiloMode
+from sentry.silo.base import SiloMode, region_silo_function
+from sentry.users.services.user.service import user_service
 from sentry.utils.env import in_test_environment
 from sentry.utils.settings import is_self_hosted
 

@@ -12,6 +12,7 @@ import ExternalLink from 'sentry/components/links/externalLink';
 import {Tooltip} from 'sentry/components/tooltip';
 import {IconQuestion} from 'sentry/icons';
 import {t, tct} from 'sentry/locale';
+import ConfigStore from 'sentry/stores/configStore';
 import HookStore from 'sentry/stores/hookStore';
 import {space} from 'sentry/styles/space';
 import type {Organization} from 'sentry/types/organization';
@@ -40,13 +41,24 @@ function getDisabledProducts(organization: Organization): DisabledProducts {
   const hasSessionReplay = organization.features.includes('session-replay');
   const hasPerformance = organization.features.includes('performance-view');
   const hasProfiling = organization.features.includes('profiling-view');
+  const isSelfHostedErrorsOnly = ConfigStore.get('isSelfHostedErrorsOnly');
 
-  const reason = t('This feature is not enabled on your Sentry installation.');
+  let reason = t('This feature is not enabled on your Sentry installation.');
   const createClickHandler = (feature: string, featureName: string) => () => {
     openModal(deps => (
       <FeatureDisabledModal {...deps} features={[feature]} featureName={featureName} />
     ));
   };
+
+  if (isSelfHostedErrorsOnly) {
+    reason = t('This feature is disabled for errors only self-hosted');
+    return Object.values(ProductSolution)
+      .filter(product => product !== ProductSolution.ERROR_MONITORING)
+      .reduce((acc, prod) => {
+        acc[prod] = {reason};
+        return acc;
+      }, {});
+  }
 
   if (!hasSessionReplay) {
     disabledProducts[ProductSolution.SESSION_REPLAY] = {
@@ -57,10 +69,7 @@ function getDisabledProducts(organization: Organization): DisabledProducts {
   if (!hasPerformance) {
     disabledProducts[ProductSolution.PERFORMANCE_MONITORING] = {
       reason,
-      onClick: createClickHandler(
-        'organizations:performance-view',
-        'Performance Monitoring'
-      ),
+      onClick: createClickHandler('organizations:performance-view', 'Tracing'),
     };
   }
   if (!hasProfiling) {
@@ -80,18 +89,16 @@ export const platformProductAvailability = {
   'apple-ios': [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.PROFILING],
   'apple-macos': [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.PROFILING],
   bun: [ProductSolution.PERFORMANCE_MONITORING],
+  capacitor: [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.SESSION_REPLAY],
   dotnet: [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.PROFILING],
   'dotnet-aspnet': [ProductSolution.PERFORMANCE_MONITORING],
-  'dotnet-aspnetcore': [
-    ProductSolution.PERFORMANCE_MONITORING,
-    ProductSolution.PROFILING,
-  ],
+  'dotnet-aspnetcore': [ProductSolution.PERFORMANCE_MONITORING],
   'dotnet-awslambda': [ProductSolution.PERFORMANCE_MONITORING],
   'dotnet-gcpfunctions': [ProductSolution.PERFORMANCE_MONITORING],
-  'dotnet-maui': [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.PROFILING],
+  'dotnet-maui': [ProductSolution.PERFORMANCE_MONITORING],
   'dotnet-uwp': [ProductSolution.PERFORMANCE_MONITORING],
-  'dotnet-winforms': [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.PROFILING],
-  'dotnet-wpf': [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.PROFILING],
+  'dotnet-winforms': [ProductSolution.PERFORMANCE_MONITORING],
+  'dotnet-wpf': [ProductSolution.PERFORMANCE_MONITORING],
   'dotnet-xamarin': [ProductSolution.PERFORMANCE_MONITORING],
   flutter: [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.PROFILING],
   kotlin: [ProductSolution.PERFORMANCE_MONITORING],
@@ -103,6 +110,7 @@ export const platformProductAvailability = {
   'go-iris': [ProductSolution.PERFORMANCE_MONITORING],
   'go-martini': [ProductSolution.PERFORMANCE_MONITORING],
   'go-negroni': [ProductSolution.PERFORMANCE_MONITORING],
+  ionic: [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.SESSION_REPLAY],
   java: [ProductSolution.PERFORMANCE_MONITORING],
   'java-spring-boot': [ProductSolution.PERFORMANCE_MONITORING],
   javascript: [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.SESSION_REPLAY],
@@ -118,7 +126,6 @@ export const platformProductAvailability = {
     ProductSolution.PERFORMANCE_MONITORING,
     ProductSolution.SESSION_REPLAY,
   ],
-  capacitor: [ProductSolution.PERFORMANCE_MONITORING, ProductSolution.SESSION_REPLAY],
   'javascript-ember': [
     ProductSolution.PERFORMANCE_MONITORING,
     ProductSolution.SESSION_REPLAY,
@@ -341,7 +348,7 @@ export function ProductSelection({
       );
 
       if (defaultProducts?.includes(ProductSolution.PROFILING)) {
-        // Ensure that if profiling is enabled, performance monitoring is also enabled
+        // Ensure that if profiling is enabled, tracing is also enabled
         if (
           product === ProductSolution.PROFILING &&
           newProduct.has(ProductSolution.PROFILING)
@@ -417,11 +424,11 @@ export function ProductSelection({
         />
         {products.includes(ProductSolution.PERFORMANCE_MONITORING) && (
           <Product
-            label={t('Performance Monitoring')}
+            label={t('Tracing')}
             description={t(
               'Automatic performance issue detection across services and context on who is impacted, outliers, regressions, and the root cause of your slowdown.'
             )}
-            docLink="https://docs.sentry.io/platforms/javascript/guides/react/performance/"
+            docLink="https://docs.sentry.io/platforms/javascript/guides/react/tracing/"
             onClick={() => handleClickProduct(ProductSolution.PERFORMANCE_MONITORING)}
             disabled={disabledProducts[ProductSolution.PERFORMANCE_MONITORING]}
             checked={urlProducts.includes(ProductSolution.PERFORMANCE_MONITORING)}
@@ -443,7 +450,7 @@ export function ProductSelection({
           <Product
             label={t('Profiling')}
             description={tct(
-              '[strong:Requires Performance Monitoring]\nSee the exact lines of code causing your performance bottlenecks, for faster troubleshooting and resource optimization.',
+              '[strong:Requires Tracing]\nSee the exact lines of code causing your performance bottlenecks, for faster troubleshooting and resource optimization.',
               {
                 strong: <strong />,
               }

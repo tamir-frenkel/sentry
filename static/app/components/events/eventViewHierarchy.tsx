@@ -1,8 +1,7 @@
-import {Fragment, useMemo} from 'react';
+import {useMemo} from 'react';
 import * as Sentry from '@sentry/react';
 
 import {useFetchEventAttachments} from 'sentry/actionCreators/events';
-import FeatureBadge from 'sentry/components/badge/featureBadge';
 import ErrorBoundary from 'sentry/components/errorBoundary';
 import {getAttachmentUrl} from 'sentry/components/events/attachmentViewers/utils';
 import LoadingIndicator from 'sentry/components/loadingIndicator';
@@ -13,8 +12,9 @@ import type {Project} from 'sentry/types/project';
 import {defined} from 'sentry/utils';
 import {useApiQuery} from 'sentry/utils/queryClient';
 import useOrganization from 'sentry/utils/useOrganization';
+import {FoldSectionKey} from 'sentry/views/issueDetails/streamline/foldSection';
+import {InterimSection} from 'sentry/views/issueDetails/streamline/interimSection';
 
-import {EventDataSection} from './eventDataSection';
 import type {ViewHierarchyData} from './viewHierarchy';
 import {ViewHierarchy} from './viewHierarchy';
 
@@ -86,20 +86,11 @@ function EventViewHierarchyContent({event, project}: Props) {
   }
 
   return (
-    <EventDataSection
-      type="view_hierarchy"
-      title={
-        <Fragment>
-          {t('View Hierarchy')}
-
-          <FeatureBadge type="new" />
-        </Fragment>
-      }
-    >
+    <InterimSection title={t('View Hierarchy')} type={FoldSectionKey.VIEW_HIERARCHY}>
       <ErrorBoundary mini>
         <ViewHierarchy viewHierarchy={hierarchy} project={project} />
       </ErrorBoundary>
-    </EventDataSection>
+    </InterimSection>
   );
 }
 

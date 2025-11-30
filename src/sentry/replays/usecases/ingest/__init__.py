@@ -6,8 +6,9 @@ import zlib
 from datetime import datetime, timezone
 from typing import TypedDict, cast
 
+import sentry_sdk.scope
 from sentry_kafka_schemas.schema_types.ingest_replay_recordings_v1 import ReplayRecording
-from sentry_sdk import Hub, set_tag
+from sentry_sdk import Scope, set_tag
 from sentry_sdk.tracing import Span
 
 from sentry.constants import DataCategory
@@ -66,9 +67,11 @@ class RecordingIngestMessage:
 
 
 @metrics.wraps("replays.usecases.ingest.ingest_recording")
-def ingest_recording(message_dict: ReplayRecording, transaction: Span, current_hub: Hub) -> None:
+def ingest_recording(
+    message_dict: ReplayRecording, transaction: Span, isolation_scope: Scope
+) -> None:
     """Ingest non-chunked recording messages."""
-    with current_hub:
+    with sentry_sdk.scope.use_isolation_scope(isolation_scope):
         with transaction.start_child(
             op="replays.usecases.ingest.ingest_recording",
             description="ingest_recording",
@@ -112,10 +115,27 @@ def _ingest_recording(message: RecordingIngestMessage, transaction: Span) -> Non
     storage_kv.set(make_recording_filename(segment_data), recording_segment)
 
     if message.replay_video:
+        # Logging org info for bigquery
+        logger.info(
+            "sentry.replays.slow_click",
+            extra={
+                "event_type": "mobile_event",
+                "org_id": message.org_id,
+                "project_id": message.project_id,
+                "size": len(message.replay_video),
+            },
+        )
+
         # Record video size for COGS analysis.
+        metrics.incr("replays.recording_consumer.replay_video_count")
         metrics.distribution(
             "replays.recording_consumer.replay_video_size",
             len(message.replay_video),
+            unit="byte",
+        )
+        metrics.distribution(
+            "replays.recording_consumer.replay_video_event_size",
+            len(message.replay_video) + len(recording_segment),
             unit="byte",
         )
         storage_kv.set(make_video_filename(segment_data), message.replay_video)
@@ -161,7 +181,19 @@ def track_initial_segment_event(
         first_replay_received.send_robust(project=project, sender=Project)
 
     # Replay videos are not billed for now.
-    if not is_replay_video:
+    if is_replay_video:
+        track_outcome(
+            org_id=org_id,
+            project_id=project_id,
+            key_id=key_id,
+            outcome=Outcome.ACCEPTED,
+            reason=None,
+            timestamp=datetime.fromtimestamp(received, timezone.utc),
+            event_id=replay_id,
+            category=DataCategory.REPLAY_VIDEO,
+            quantity=1,
+        )
+    else:
         track_outcome(
             org_id=org_id,
             project_id=project_id,
@@ -258,6 +290,19 @@ def recording_post_processor(
             message.replay_id,
             parsed_segment_data,
         )
+
+        # Log # of rrweb events to bigquery.
+        logger.info(
+            "sentry.replays.slow_click",
+            extra={
+                "event_type": "rrweb_event_count",
+                "org_id": message.org_id,
+                "project_id": message.project_id,
+                "replay_id": message.replay_id,
+                "size": len(parsed_segment_data),
+            },
+        )
+
     except Exception:
         logging.exception(
             "Failed to parse recording org=%s, project=%s, replay=%s, segment=%s",

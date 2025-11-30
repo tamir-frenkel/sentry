@@ -3,17 +3,22 @@ import styled from '@emotion/styled';
 
 import {AiSuggestedSolution} from 'sentry/components/events/aiSuggestedSolution';
 import {Autofix} from 'sentry/components/events/autofix';
-import {EventDataSection} from 'sentry/components/events/eventDataSection';
 import {Resources} from 'sentry/components/events/interfaces/performance/resources';
 import {t} from 'sentry/locale';
+import ConfigStore from 'sentry/stores/configStore';
 import {space} from 'sentry/styles/space';
-import {EntryType, type Event, type Group, type Project} from 'sentry/types';
+import {EntryType, type Event} from 'sentry/types/event';
+import type {Group} from 'sentry/types/group';
+import type {Project} from 'sentry/types/project';
 import {
   getConfigForIssueType,
   shouldShowCustomErrorResourceConfig,
 } from 'sentry/utils/issueTypeConfig';
 import {getRegionDataFromOrganization} from 'sentry/utils/regions';
 import useOrganization from 'sentry/utils/useOrganization';
+import {FoldSectionKey} from 'sentry/views/issueDetails/streamline/foldSection';
+import {InterimSection} from 'sentry/views/issueDetails/streamline/interimSection';
+import {useIsSampleEvent} from 'sentry/views/issueDetails/utils';
 
 type Props = {
   event: Event;
@@ -21,41 +26,59 @@ type Props = {
   project: Project;
 };
 
+// Autofix requires the event to have stack trace frames in order to work correctly.
+function hasStacktraceWithFrames(event: Event) {
+  for (const entry of event.entries) {
+    if (entry.type === EntryType.EXCEPTION) {
+      if (entry.data.values?.some(value => value.stacktrace?.frames?.length)) {
+        return true;
+      }
+    }
+
+    if (entry.type === EntryType.THREADS) {
+      if (entry.data.values?.some(thread => thread.stacktrace?.frames?.length)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 // This section provides users with resources and possible solutions on how to resolve an issue
 export function ResourcesAndPossibleSolutions({event, project, group}: Props) {
   const organization = useOrganization();
   const config = getConfigForIssueType(group, project);
-
-  const hasStacktrace = event.entries.some(
-    entry =>
-      entry.type === EntryType.EXCEPTION ||
-      entry.type === EntryType.STACKTRACE ||
-      entry.type === EntryType.THREADS
-  );
-
+  const isSelfHostedErrorsOnly = ConfigStore.get('isSelfHostedErrorsOnly');
+  const isSampleError = useIsSampleEvent();
   // NOTE:  Autofix is for INTERNAL testing only for now.
   const displayAiAutofix =
     project.features.includes('ai-autofix') &&
     organization.features.includes('issue-details-autofix-ui') &&
     !shouldShowCustomErrorResourceConfig(group, project) &&
     config.autofix &&
-    hasStacktrace;
+    hasStacktraceWithFrames(event) &&
+    !isSampleError;
   const displayAiSuggestedSolution =
     // Skip showing AI suggested solution if the issue has a custom resource
     organization.aiSuggestedSolution &&
     getRegionDataFromOrganization(organization)?.name !== 'de' &&
     !shouldShowCustomErrorResourceConfig(group, project) &&
-    !displayAiAutofix;
+    !displayAiAutofix &&
+    !isSampleError;
 
-  if (!config.resources && !(displayAiSuggestedSolution || displayAiAutofix)) {
+  if (
+    isSelfHostedErrorsOnly ||
+    (!config.resources && !(displayAiSuggestedSolution || displayAiAutofix))
+  ) {
     return null;
   }
 
   return (
     <Wrapper
-      type="resources-and-possible-solutions"
       title={t('Resources and Possible Solutions')}
       configResources={!!config.resources}
+      type={FoldSectionKey.RESOURCES}
     >
       <Content>
         {config.resources && (
@@ -80,7 +103,7 @@ const Content = styled('div')`
   gap: ${space(2)};
 `;
 
-const Wrapper = styled(EventDataSection)<{configResources: boolean}>`
+const Wrapper = styled(InterimSection)<{configResources: boolean}>`
   @media (min-width: ${p => p.theme.breakpoints.xlarge}) {
     ${p =>
       !p.configResources &&

@@ -15,11 +15,11 @@ import {PlatformIcon} from 'platformicons';
 
 import LoadingIndicator from 'sentry/components/loadingIndicator';
 import Placeholder from 'sentry/components/placeholder';
-import {replayPlayerTimestampEmitter} from 'sentry/components/replays/replayContext';
 import {t, tct} from 'sentry/locale';
 import ConfigStore from 'sentry/stores/configStore';
 import {space} from 'sentry/styles/space';
-import type {Organization, PlatformKey, Project} from 'sentry/types';
+import type {Organization} from 'sentry/types/organization';
+import type {PlatformKey, Project} from 'sentry/types/project';
 import {trackAnalytics} from 'sentry/utils/analytics';
 import {formatTraceDuration} from 'sentry/utils/duration/formatTraceDuration';
 import type {
@@ -27,9 +27,14 @@ import type {
   TracePerformanceIssue,
 } from 'sentry/utils/performance/quickTrace/types';
 import {clamp} from 'sentry/utils/profiling/colors/utils';
+import {replayPlayerTimestampEmitter} from 'sentry/utils/replays/replayPlayerTimestampEmitter';
 import useApi from 'sentry/utils/useApi';
 import useOrganization from 'sentry/utils/useOrganization';
 import useProjects from 'sentry/utils/useProjects';
+import type {
+  TraceEvents,
+  TraceScheduler,
+} from 'sentry/views/performance/newTraceDetails/traceRenderers/traceScheduler';
 import {
   useVirtualizedList,
   type VirtualizedRow,
@@ -158,6 +163,7 @@ interface TraceProps {
   ) => void;
   previouslyFocusedNodeRef: React.MutableRefObject<TraceTreeNode<TraceTree.NodeValue> | null>;
   rerender: () => void;
+  scheduler: TraceScheduler;
   scrollQueueRef: React.MutableRefObject<
     | {
         eventId?: string;
@@ -167,12 +173,11 @@ interface TraceProps {
     | undefined
   >;
   trace: TraceTree;
-  trace_id: string;
+  trace_id: string | undefined;
 }
 
 export function Trace({
   trace,
-  trace_id,
   onRowClick,
   manager,
   scrollQueueRef,
@@ -180,8 +185,10 @@ export function Trace({
   onTraceSearch,
   onTraceLoad,
   rerender,
+  scheduler,
   initializedRef,
   forceRerender,
+  trace_id,
 }: TraceProps) {
   const theme = useTheme();
   const api = useApi();
@@ -205,6 +212,44 @@ export function Trace({
 
   const traceStateRef = useRef<TraceReducerState>(traceState);
   traceStateRef.current = traceState;
+
+  useLayoutEffect(() => {
+    const onTraceViewChange: TraceEvents['set trace view'] = () => {
+      manager.recomputeTimelineIntervals();
+      manager.recomputeSpanToPXMatrix();
+      manager.syncResetZoomButton();
+      manager.draw();
+    };
+    const onPhysicalSpaceChange: TraceEvents['set container physical space'] = () => {
+      manager.recomputeTimelineIntervals();
+      manager.recomputeSpanToPXMatrix();
+      manager.draw();
+    };
+    const onTraceSpaceChange: TraceEvents['initialize trace space'] = () => {
+      manager.recomputeTimelineIntervals();
+      manager.recomputeSpanToPXMatrix();
+      manager.draw();
+    };
+    const onDividerResize: TraceEvents['divider resize'] = view => {
+      manager.recomputeTimelineIntervals();
+      manager.recomputeSpanToPXMatrix();
+      manager.draw(view);
+    };
+
+    scheduler.on('set trace view', onTraceViewChange);
+    scheduler.on('set trace space', onTraceSpaceChange);
+    scheduler.on('set container physical space', onPhysicalSpaceChange);
+    scheduler.on('initialize trace space', onTraceSpaceChange);
+    scheduler.on('divider resize', onDividerResize);
+
+    return () => {
+      scheduler.off('set trace view', onTraceViewChange);
+      scheduler.off('set trace space', onTraceSpaceChange);
+      scheduler.off('set container physical space', onPhysicalSpaceChange);
+      scheduler.off('initialize trace space', onTraceSpaceChange);
+      scheduler.off('divider resize', onDividerResize);
+    };
+  }, [manager, scheduler]);
 
   useLayoutEffect(() => {
     if (initializedRef.current) {
@@ -254,13 +299,17 @@ export function Trace({
         // else the screen could jump around while we fetch span data
         scrollQueueRef.current = null;
         rerenderRef.current();
+        // Allow react to rerender before dispatching the init event
+        requestAnimationFrame(() => {
+          scheduler.dispatch('initialize virtualized list');
+        });
       });
   }, [
     api,
     trace,
-    trace_id,
     manager,
     onTraceLoad,
+    scheduler,
     traceDispatch,
     scrollQueueRef,
     initializedRef,
@@ -397,7 +446,6 @@ export function Trace({
           isSearchResult={traceState.search.resultsLookup.has(n.item)}
           searchResultsIteratorIndex={traceState.search.resultIndex}
           style={n.style}
-          trace_id={trace_id}
           projects={projectLookup}
           node={n.item}
           manager={manager}
@@ -406,6 +454,8 @@ export function Trace({
           onZoomIn={onNodeZoomIn}
           onRowClick={onRowClick}
           onRowKeyDown={onRowKeyDown}
+          tree={trace}
+          trace_id={trace_id}
         />
       );
     },
@@ -426,7 +476,6 @@ export function Trace({
       traceState.search.resultsLookup,
       traceState.search.resultIndex,
       theme,
-      trace_id,
       trace.type,
       forceRerender,
     ]
@@ -438,22 +487,23 @@ export function Trace({
       : r => renderVirtualizedRow(r);
   }, [renderLoadingRow, renderVirtualizedRow, trace.type, scrollQueueRef]);
 
+  const traceNode = trace.root.children[0];
+  const traceStartTimestamp = traceNode?.space?.[0];
+
   const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
   const virtualizedList = useVirtualizedList({
     manager,
     items: trace.list,
     container: scrollContainer,
     render: render,
+    scheduler,
   });
-
-  const traceNode = trace.root.children[0];
-  const traceStartTimestamp = traceNode?.space?.[0];
 
   return (
     <TraceStylingWrapper
       ref={manager.registerContainerRef}
       className={`
-        ${trace?.root?.space?.[1] === 0 ? 'Empty' : ''}
+        ${trace.root.space[1] === 0 ? 'Empty' : ''}
         ${trace.indicators.length > 0 ? 'WithIndicators' : ''}
         ${trace.type !== 'trace' || scrollQueueRef.current ? 'Loading' : ''}
         ${ConfigStore.get('theme')}`}
@@ -499,7 +549,7 @@ export function Trace({
             >
               <div className="TraceIndicatorLabel">
                 {indicatorTimestamp > 0
-                  ? formatTraceDuration(manager.trace_view.x + indicatorTimestamp)
+                  ? formatTraceDuration(manager.view.trace_view.x + indicatorTimestamp)
                   : '0s'}
               </div>
               <div className="TraceIndicatorLine" />
@@ -565,7 +615,8 @@ function RenderRow(props: {
   style: React.CSSProperties;
   tabIndex: number;
   theme: Theme;
-  trace_id: string;
+  trace_id: string | undefined;
+  tree: TraceTree;
 }) {
   const virtualized_index = props.index - props.manager.start_virtualized_index;
   const rowSearchClassName = `${props.isSearchResult ? 'SearchResult' : ''} ${props.searchResultsIteratorIndex === props.index ? 'Highlight' : ''}`;
@@ -605,8 +656,8 @@ function RenderRow(props: {
     [props.index, props.node, onKeyDownProp]
   );
 
-  const onSpanRowDoubleClick = useCallback(
-    e => {
+  const onRowDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
       trackAnalytics('trace.trace_layout.zoom_to_fill', {
         organization: props.organization,
       });
@@ -617,7 +668,7 @@ function RenderRow(props: {
   );
 
   const onSpanRowArrowClick = useCallback(
-    _e => {
+    (_e: React.MouseEvent) => {
       props.manager.onBringRowIntoView(props.node.space!);
     },
     [props.node.space, props.manager]
@@ -625,9 +676,15 @@ function RenderRow(props: {
 
   const onExpandProp = props.onExpand;
   const onExpandClick = useCallback(
-    e => onExpandProp(e, props.node, !props.node.expanded),
+    (e: React.MouseEvent) => {
+      onExpandProp(e, props.node, !props.node.expanded);
+    },
     [props.node, onExpandProp]
   );
+
+  const onExpandDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
 
   const spanColumnClassName =
     props.index % 2 === 1 ? RIGHT_COLUMN_ODD_CLASSNAME : RIGHT_COLUMN_EVEN_CLASSNAME;
@@ -656,7 +713,11 @@ function RenderRow(props: {
         style={props.style}
       >
         <div className="TraceLeftColumn" ref={registerListColumnRef}>
-          <div className={`TraceLeftColumnInner`} style={listColumnStyle}>
+          <div
+            className="TraceLeftColumnInner"
+            style={listColumnStyle}
+            onDoubleClick={onRowDoubleClick}
+          >
             <div className="TraceChildrenCountWrapper">
               <Connectors node={props.node} manager={props.manager} />
               <ChildrenButton
@@ -666,6 +727,7 @@ function RenderRow(props: {
                 status={props.node.fetchStatus}
                 expanded={!props.node.expanded}
                 onClick={onExpandClick}
+                onDoubleClick={onExpandDoubleClick}
               >
                 {COUNT_FORMATTER.format(props.node.groupCount)}
               </ChildrenButton>
@@ -679,7 +741,7 @@ function RenderRow(props: {
         <div
           className={spanColumnClassName}
           ref={registerSpanColumnRef}
-          onDoubleClick={onSpanRowDoubleClick}
+          onDoubleClick={onRowDoubleClick}
         >
           <AutogroupedTraceBar
             manager={props.manager}
@@ -719,7 +781,11 @@ function RenderRow(props: {
         style={props.style}
       >
         <div className="TraceLeftColumn" ref={registerListColumnRef}>
-          <div className={`TraceLeftColumnInner`} style={listColumnStyle}>
+          <div
+            className="TraceLeftColumnInner"
+            style={listColumnStyle}
+            onDoubleClick={onRowDoubleClick}
+          >
             <div className={listColumnClassName}>
               <Connectors node={props.node} manager={props.manager} />
               {props.node.children.length > 0 || props.node.canFetch ? (
@@ -735,6 +801,7 @@ function RenderRow(props: {
                   }
                   status={props.node.fetchStatus}
                   expanded={props.node.expanded || props.node.zoomedIn}
+                  onDoubleClick={onExpandDoubleClick}
                   onClick={e => {
                     props.node.canFetch
                       ? props.onZoomIn(e, props.node, !props.node.zoomedIn)
@@ -758,7 +825,7 @@ function RenderRow(props: {
         <div
           ref={registerSpanColumnRef}
           className={spanColumnClassName}
-          onDoubleClick={onSpanRowDoubleClick}
+          onDoubleClick={onRowDoubleClick}
         >
           <TraceBar
             virtualized_index={virtualized_index}
@@ -797,7 +864,11 @@ function RenderRow(props: {
         style={props.style}
       >
         <div className="TraceLeftColumn" ref={registerListColumnRef}>
-          <div className={`TraceLeftColumnInner`} style={listColumnStyle}>
+          <div
+            className="TraceLeftColumnInner"
+            style={listColumnStyle}
+            onDoubleClick={onRowDoubleClick}
+          >
             <div className={listColumnClassName}>
               <Connectors node={props.node} manager={props.manager} />
               {props.node.children.length > 0 || props.node.canFetch ? (
@@ -813,6 +884,7 @@ function RenderRow(props: {
                   }
                   status={props.node.fetchStatus}
                   expanded={props.node.expanded || props.node.zoomedIn}
+                  onDoubleClick={onExpandDoubleClick}
                   onClick={e =>
                     props.node.canFetch
                       ? props.onZoomIn(e, props.node, !props.node.zoomedIn)
@@ -839,7 +911,7 @@ function RenderRow(props: {
         <div
           ref={registerSpanColumnRef}
           className={spanColumnClassName}
-          onDoubleClick={onSpanRowDoubleClick}
+          onDoubleClick={onRowDoubleClick}
         >
           <TraceBar
             virtualized_index={virtualized_index}
@@ -878,7 +950,11 @@ function RenderRow(props: {
         style={props.style}
       >
         <div className="TraceLeftColumn" ref={registerListColumnRef}>
-          <div className="TraceLeftColumnInner" style={listColumnStyle}>
+          <div
+            className="TraceLeftColumnInner"
+            style={listColumnStyle}
+            onDoubleClick={onRowDoubleClick}
+          >
             <div className="TraceChildrenCountWrapper">
               <Connectors node={props.node} manager={props.manager} />
             </div>
@@ -888,7 +964,7 @@ function RenderRow(props: {
         <div
           ref={registerSpanColumnRef}
           className={spanColumnClassName}
-          onDoubleClick={onSpanRowDoubleClick}
+          onDoubleClick={onRowDoubleClick}
         >
           <MissingInstrumentationTraceBar
             virtualized_index={virtualized_index}
@@ -924,27 +1000,43 @@ function RenderRow(props: {
         style={props.style}
       >
         <div className="TraceLeftColumn" ref={registerListColumnRef}>
-          <div className="TraceLeftColumnInner" style={listColumnStyle}>
+          <div
+            className="TraceLeftColumnInner"
+            style={listColumnStyle}
+            onDoubleClick={onRowDoubleClick}
+          >
             {' '}
             <div className="TraceChildrenCountWrapper Root">
               <Connectors node={props.node} manager={props.manager} />
               {props.node.children.length > 0 || props.node.canFetch ? (
-                <ChildrenButton icon={''} status={'idle'} expanded onClick={() => void 0}>
-                  {props.node.children.length > 0
-                    ? COUNT_FORMATTER.format(props.node.children.length)
-                    : null}
+                <ChildrenButton
+                  icon={''}
+                  status={props.node.fetchStatus}
+                  expanded
+                  onClick={() => void 0}
+                  onDoubleClick={onExpandDoubleClick}
+                >
+                  {props.node.fetchStatus === 'loading'
+                    ? null
+                    : props.node.children.length > 0
+                      ? COUNT_FORMATTER.format(props.node.children.length)
+                      : null}
                 </ChildrenButton>
               ) : null}
             </div>
             <span className="TraceOperation">{t('Trace')}</span>
-            <strong className="TraceEmDash"> — </strong>
-            <span className="TraceDescription">{props.trace_id}</span>
+            {props.trace_id ? (
+              <Fragment>
+                <strong className="TraceEmDash"> — </strong>
+                <span className="TraceDescription">{props.trace_id}</span>
+              </Fragment>
+            ) : null}
           </div>
         </div>
         <div
           ref={registerSpanColumnRef}
           className={spanColumnClassName}
-          onDoubleClick={onSpanRowDoubleClick}
+          onDoubleClick={onRowDoubleClick}
         >
           <TraceBar
             virtualized_index={virtualized_index}
@@ -983,7 +1075,11 @@ function RenderRow(props: {
         style={props.style}
       >
         <div className="TraceLeftColumn" ref={registerListColumnRef}>
-          <div className="TraceLeftColumnInner" style={listColumnStyle}>
+          <div
+            className="TraceLeftColumnInner"
+            style={listColumnStyle}
+            onDoubleClick={onRowDoubleClick}
+          >
             <div className="TraceChildrenCountWrapper">
               <Connectors node={props.node} manager={props.manager} />{' '}
             </div>
@@ -1002,7 +1098,7 @@ function RenderRow(props: {
         <div
           ref={registerSpanColumnRef}
           className={spanColumnClassName}
-          onDoubleClick={onSpanRowDoubleClick}
+          onDoubleClick={onRowDoubleClick}
         >
           <InvisibleTraceBar
             node_space={props.node.space}
@@ -1036,7 +1132,11 @@ function RenderRow(props: {
         style={props.style}
       >
         <div className="TraceLeftColumn" ref={registerListColumnRef}>
-          <div className="TraceLeftColumnInner" style={listColumnStyle}>
+          <div
+            className="TraceLeftColumnInner"
+            style={listColumnStyle}
+            onDoubleClick={onRowDoubleClick}
+          >
             <div className="TraceChildrenCountWrapper">
               <Connectors node={props.node} manager={props.manager} />
             </div>
@@ -1102,6 +1202,7 @@ function RenderPlaceholderRow(props: {
                 status={props.node.fetchStatus}
                 expanded={props.node.expanded || props.node.zoomedIn}
                 onClick={() => void 0}
+                onDoubleClick={() => void 0}
               >
                 {props.node.children.length > 0
                   ? COUNT_FORMATTER.format(props.node.children.length)
@@ -1196,10 +1297,15 @@ function ChildrenButton(props: {
   expanded: boolean;
   icon: React.ReactNode;
   onClick: (e: React.MouseEvent) => void;
+  onDoubleClick: (e: React.MouseEvent) => void;
   status: TraceTreeNode<any>['fetchStatus'] | undefined;
 }) {
   return (
-    <button className={`TraceChildrenCount`} onClick={props.onClick}>
+    <button
+      className={`TraceChildrenCount`}
+      onClick={props.onClick}
+      onDoubleClick={props.onDoubleClick}
+    >
       <div className="TraceChildrenCountContent">{props.children}</div>
       <div className="TraceChildrenCountAction">
         {props.icon}
@@ -1433,17 +1539,16 @@ function BackgroundPatterns(props: BackgroundPatternsProps) {
             );
 
             return (
-              <Fragment key={i}>
-                <div
-                  className="TracePatternContainer"
-                  style={{
-                    left: left * 100 + '%',
-                    width: (1 - left) * 100 + '%',
-                  }}
-                >
-                  <div className="TracePattern performance_issue" />
-                </div>
-              </Fragment>
+              <div
+                key={i}
+                className="TracePatternContainer"
+                style={{
+                  left: left * 100 + '%',
+                  width: (1 - left) * 100 + '%',
+                }}
+              >
+                <div className="TracePattern performance_issue" />
+              </div>
             );
           })}
         </Fragment>
@@ -1732,6 +1837,17 @@ const TraceStylingWrapper = styled('div')`
   height: 100%;
   grid-area: trace;
   padding-top: 26px;
+
+  --info: ${p => p.theme.purple400};
+  --warning: ${p => p.theme.yellow300};
+  --debug: ${p => p.theme.blue300};
+  --error: ${p => p.theme.error};
+  --fatal: ${p => p.theme.error};
+  --default: ${p => p.theme.gray300};
+  --unknown: ${p => p.theme.gray300};
+  --profile: ${p => p.theme.purple300};
+  --autogrouped: ${p => p.theme.blue300};
+  --performance-issue: ${p => p.theme.blue300};
 
   &.WithIndicators {
     padding-top: 44px;
@@ -2049,6 +2165,8 @@ const TraceStylingWrapper = styled('div')`
     }
     &.warning {
     }
+    &.debug {
+    }
     &.error,
     &.fatal,
     &.performance_issue {
@@ -2094,6 +2212,9 @@ const TraceStylingWrapper = styled('div')`
       }
       &.warning {
         background-color: var(--warning);
+      }
+      &.debug {
+        background-color: var(--debug);
       }
       &.error,
       &.fatal {
@@ -2245,6 +2366,17 @@ const TraceStylingWrapper = styled('div')`
         }
         svg {
           fill: ${p => p.theme.white};
+        }
+      }
+
+      &.error {
+        color: ${p => p.theme.red300};
+
+        .TraceChildrenCountWrapper {
+          button {
+            color: ${p => p.theme.white};
+            background-color: ${p => p.theme.red300};
+          }
         }
       }
     }

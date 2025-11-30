@@ -1,20 +1,21 @@
 import Alert from 'sentry/components/alert';
 import {LinkButton} from 'sentry/components/button';
 import ButtonBar from 'sentry/components/buttonBar';
-import {EventDataSection} from 'sentry/components/events/eventDataSection';
 import {IconOpen} from 'sentry/icons';
 import {t} from 'sentry/locale';
 import type {Event} from 'sentry/types/event';
 import type {Organization} from 'sentry/types/organization';
 import {MutableSearch} from 'sentry/utils/tokenizeSearch';
+import * as ModuleLayout from 'sentry/views/insights/common/components/moduleLayout';
+import {useSpansIndexed} from 'sentry/views/insights/common/queries/useDiscover';
+import {useModuleURL} from 'sentry/views/insights/common/utils/useModuleURL';
 import {
   NumberOfPipelinesChart,
   TotalTokensUsedChart,
-} from 'sentry/views/llmMonitoring/llmMonitoringCharts';
-import * as ModuleLayout from 'sentry/views/performance/moduleLayout';
-import {useModuleURL} from 'sentry/views/performance/utils/useModuleURL';
-import {useSpansIndexed} from 'sentry/views/starfish/queries/useDiscover';
-import {SpanIndexedField, type SpanIndexedResponse} from 'sentry/views/starfish/types';
+} from 'sentry/views/insights/llmMonitoring/components/charts/llmMonitoringCharts';
+import {SpanIndexedField, type SpanIndexedResponse} from 'sentry/views/insights/types';
+import {FoldSectionKey} from 'sentry/views/issueDetails/streamline/foldSection';
+import {InterimSection} from 'sentry/views/issueDetails/streamline/interimSection';
 
 interface Props {
   event: Event;
@@ -45,9 +46,9 @@ export default function LLMMonitoringSection({event}: Props) {
   );
 
   return (
-    <EventDataSection
+    <InterimSection
       title={t('LLM monitoring')}
-      type="llm-monitoring"
+      type={FoldSectionKey.LLM_MONITORING}
       help={t('Charts showing how many tokens are being used')}
       actions={actions}
     >
@@ -67,6 +68,6 @@ export default function LLMMonitoringSection({event}: Props) {
           </ModuleLayout.Half>
         </ModuleLayout.Layout>
       )}
-    </EventDataSection>
+    </InterimSection>
   );
 }

@@ -1,4 +1,4 @@
-import {Fragment} from 'react';
+import {Fragment, useCallback, useMemo} from 'react';
 import {browserHistory} from 'react-router';
 import styled from '@emotion/styled';
 import type {Location} from 'history';
@@ -7,6 +7,7 @@ import SearchBar from 'sentry/components/events/searchBar';
 import type {GridColumnHeader} from 'sentry/components/gridEditable';
 import GridEditable, {COL_WIDTH_UNDEFINED} from 'sentry/components/gridEditable';
 import Pagination, {type CursorHandler} from 'sentry/components/pagination';
+import {SpanSearchQueryBuilder} from 'sentry/components/performance/spanSearchQueryBuilder';
 import {ROW_HEIGHT, ROW_PADDING} from 'sentry/components/performance/waterfall/constants';
 import PerformanceDuration from 'sentry/components/performanceDuration';
 import {Tooltip} from 'sentry/components/tooltip';
@@ -30,21 +31,21 @@ import {useLocation} from 'sentry/utils/useLocation';
 import {useNavigate} from 'sentry/utils/useNavigate';
 import useOrganization from 'sentry/utils/useOrganization';
 import {useParams} from 'sentry/utils/useParams';
-import {TraceViewSources} from 'sentry/views/performance/newTraceDetails/traceMetadataHeader';
-import {SpanDurationBar} from 'sentry/views/performance/transactionSummary/transactionSpans/spanDetails/spanDetailsTable';
-import {SpanSummaryReferrer} from 'sentry/views/performance/transactionSummary/transactionSpans/spanSummary/referrers';
-import {useSpanSummarySort} from 'sentry/views/performance/transactionSummary/transactionSpans/spanSummary/useSpanSummarySort';
-import {useSpanFieldSupportedTags} from 'sentry/views/performance/utils/useSpanFieldSupportedTags';
-import {renderHeadCell} from 'sentry/views/starfish/components/tableCells/renderHeadCell';
-import {SpanIdCell} from 'sentry/views/starfish/components/tableCells/spanIdCell';
-import {useSpansIndexed} from 'sentry/views/starfish/queries/useDiscover';
+import {renderHeadCell} from 'sentry/views/insights/common/components/tableCells/renderHeadCell';
+import {SpanIdCell} from 'sentry/views/insights/common/components/tableCells/spanIdCell';
+import {useSpansIndexed} from 'sentry/views/insights/common/queries/useDiscover';
+import {QueryParameterNames} from 'sentry/views/insights/common/views/queryParameters';
 import {
   ModuleName,
   SpanIndexedField,
   type SpanIndexedResponse,
   type SpanMetricsQueryFilters,
-} from 'sentry/views/starfish/types';
-import {QueryParameterNames} from 'sentry/views/starfish/views/queryParameters';
+} from 'sentry/views/insights/types';
+import {TraceViewSources} from 'sentry/views/performance/newTraceDetails/traceMetadataHeader';
+import {SpanDurationBar} from 'sentry/views/performance/transactionSummary/transactionSpans/spanDetails/spanDetailsTable';
+import {SpanSummaryReferrer} from 'sentry/views/performance/transactionSummary/transactionSpans/spanSummary/referrers';
+import {useSpanSummarySort} from 'sentry/views/performance/transactionSummary/transactionSpans/spanSummary/useSpanSummarySort';
+import {useSpanFieldSupportedTags} from 'sentry/views/performance/utils/useSpanFieldSupportedTags';
 
 import Tab from '../../tabs';
 
@@ -109,7 +110,7 @@ export default function SpanSummaryTable(props: Props) {
   const location = useLocation();
   const {transaction} = location.query;
   const spansCursor = decodeScalar(location.query?.[QueryParameterNames.SPANS_CURSOR]);
-  const spansQuery = decodeScalar(location.query.spansQuery);
+  const spansQuery = decodeScalar(location.query.spansQuery, '');
 
   const filters: SpanMetricsQueryFilters = {
     'span.group': groupId,
@@ -118,7 +119,7 @@ export default function SpanSummaryTable(props: Props) {
   };
 
   const sort = useSpanSummarySort();
-  const spanSearchString = new MutableSearch(spansQuery ?? '').formatString();
+  const spanSearchString = new MutableSearch(spansQuery).formatString();
   const search = MutableSearch.fromQueryObject(filters);
   search.addStringMultiFilter(spanSearchString);
 
@@ -209,28 +210,43 @@ export default function SpanSummaryTable(props: Props) {
     });
   };
 
-  const handleSearch = (searchString: string) => {
-    navigate({
-      ...location,
-      query: {
-        ...location.query,
-        spansQuery: new MutableSearch(searchString).formatString(),
-      },
-    });
-  };
+  const handleSearch = useCallback(
+    (searchString: string) => {
+      navigate({
+        ...location,
+        query: {
+          ...location.query,
+          spansQuery: new MutableSearch(searchString).formatString(),
+        },
+      });
+    },
+    [location, navigate]
+  );
+  const projectIds = useMemo(() => eventView.project.slice(), [eventView]);
 
   return (
     <Fragment>
-      <StyledSearchBar
-        organization={organization}
-        projectIds={eventView.project}
-        query={spansQuery}
-        fields={eventView.fields}
-        placeholder={t('Search for span attributes')}
-        supportedTags={supportedTags}
-        dataset={DiscoverDatasets.SPANS_INDEXED}
-        onSearch={handleSearch}
-      />
+      <StyledSearchBarWrapper>
+        {organization.features.includes('search-query-builder-performance') ? (
+          <SpanSearchQueryBuilder
+            projects={projectIds}
+            initialQuery={spansQuery}
+            onSearch={handleSearch}
+            searchSource="transaction_span_summary"
+          />
+        ) : (
+          <SearchBar
+            organization={organization}
+            projectIds={eventView.project}
+            query={spansQuery}
+            fields={eventView.fields}
+            placeholder={t('Search for span attributes')}
+            supportedTags={supportedTags}
+            dataset={DiscoverDatasets.SPANS_INDEXED}
+            onSearch={handleSearch}
+          />
+        )}
+      </StyledSearchBarWrapper>
       <VisuallyCompleteWithData
         id="SpanDetails-SpanDetailsTable"
         hasData={!!mergedData?.length}
@@ -355,6 +371,6 @@ const EmptySpanDurationBar = styled('div')`
   line-height: 1;
 `;
 
-const StyledSearchBar = styled(SearchBar)`
+const StyledSearchBarWrapper = styled('div')`
   margin-bottom: ${space(2)};
 `;

@@ -10,7 +10,7 @@ from sentry.api.base import StatsMixin, region_silo_endpoint
 from sentry.api.bases import RegionSentryAppBaseEndpoint, SentryAppStatsPermission
 from sentry.api.bases.sentryapps import COMPONENT_TYPES
 from sentry.models.integrations.sentry_app import SentryApp
-from sentry.services.hybrid_cloud.app import RpcSentryApp, app_service
+from sentry.sentry_apps.services.app import RpcSentryApp, app_service
 from sentry.tsdb.base import TSDBModel
 
 logger = logging.getLogger(__name__)
@@ -26,8 +26,8 @@ def get_component_interaction_key(sentry_app: RpcSentryApp | SentryApp, componen
 class SentryAppInteractionEndpoint(RegionSentryAppBaseEndpoint, StatsMixin):
     owner = ApiOwner.INTEGRATIONS
     publish_status = {
-        "GET": ApiPublishStatus.UNKNOWN,
-        "POST": ApiPublishStatus.UNKNOWN,
+        "GET": ApiPublishStatus.PRIVATE,
+        "POST": ApiPublishStatus.PRIVATE,
     }
     permission_classes = (SentryAppStatsPermission,)
 

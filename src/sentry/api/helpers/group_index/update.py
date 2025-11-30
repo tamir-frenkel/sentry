@@ -20,6 +20,8 @@ from sentry import analytics, features, options
 from sentry.api.serializers import serialize
 from sentry.api.serializers.models.actor import ActorSerializer, ActorSerializerResponse
 from sentry.db.models.query import create_or_update
+from sentry.hybridcloud.rpc import coerce_id_from
+from sentry.integrations.tasks.kick_off_status_syncs import kick_off_status_syncs
 from sentry.issues.grouptype import GroupCategory
 from sentry.issues.ignored import handle_archived_until_escalating, handle_ignored
 from sentry.issues.merge import handle_merge
@@ -43,17 +45,15 @@ from sentry.models.groupsubscription import GroupSubscription
 from sentry.models.grouptombstone import TOMBSTONE_FIELDS_FROM_GROUP, GroupTombstone
 from sentry.models.project import Project
 from sentry.models.release import Release, follows_semver_versioning_scheme
-from sentry.models.user import User
 from sentry.notifications.types import SUBSCRIPTION_REASON_MAP, GroupSubscriptionReason
-from sentry.services.hybrid_cloud import coerce_id_from
-from sentry.services.hybrid_cloud.user import RpcUser
-from sentry.services.hybrid_cloud.user.service import user_service
-from sentry.services.hybrid_cloud.user_option import user_option_service
 from sentry.signals import issue_resolved
-from sentry.tasks.integrations import kick_off_status_syncs
 from sentry.types.activity import ActivityType
 from sentry.types.actor import Actor, ActorType
 from sentry.types.group import SUBSTATUS_UPDATE_CHOICES, GroupSubStatus, PriorityLevel
+from sentry.users.models.user import User
+from sentry.users.services.user import RpcUser
+from sentry.users.services.user.service import user_service
+from sentry.users.services.user_option import user_option_service
 from sentry.utils import metrics
 
 from . import ACTIVITIES_COUNT, BULK_MUTATION_LIMIT, SearchFunction, delete_group_list
@@ -188,8 +188,6 @@ def update_groups(
     else:
         group_list = None
 
-    has_priority = False
-
     serializer = None
     # TODO(jess): We may want to look into refactoring GroupValidator
     # to support multiple projects, but this is pretty complicated
@@ -206,8 +204,6 @@ def update_groups(
         )
         if not serializer.is_valid():
             raise serializers.ValidationError(serializer.errors)
-        if not has_priority and features.has("projects:issue-priority", project, actor=user):
-            has_priority = True
 
     if serializer is None:
         return
@@ -258,7 +254,7 @@ def update_groups(
     res_type = None
     activity_type = None
     activity_data: MutableMapping[str, Any | None] | None = None
-    if has_priority and "priority" in result:
+    if "priority" in result:
         handle_priority(
             priority=result["priority"],
             group_list=group_list,
@@ -274,14 +270,17 @@ def update_groups(
                     {"detail": "Cannot set resolved in next release for multiple projects."},
                     status=400,
                 )
+            # may not be a release yet
             release = (
                 status_details.get("inNextRelease")
                 or Release.objects.filter(
                     projects=projects[0], organization_id=projects[0].organization_id
                 )
                 .extra(select={"sort": "COALESCE(date_released, date_added)"})
-                .order_by("-sort")[0]
+                .order_by("-sort")
+                .first()
             )
+
             activity_type = ActivityType.SET_RESOLVED_IN_RELEASE.value
             activity_data = {
                 # no version yet

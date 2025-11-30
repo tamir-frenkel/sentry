@@ -316,7 +316,7 @@ class RedisTSDB(BaseTSDB):
         start: datetime,
         end: datetime,
         rollup: int | None = None,
-        environment_ids: list[int] | None = None,
+        environment_ids: Sequence[int] | None = None,
         conditions=None,
         use_cache: bool = False,
         jitter_value: int | None = None,
@@ -878,7 +878,7 @@ class RedisTSDB(BaseTSDB):
         limit: int | None = None,
         environment_id: int | None = None,
         tenant_ids: dict[str, int | str] | None = None,
-    ) -> dict[str, Iterable[dict[str, float]]]:
+    ) -> dict[str, list[tuple[int, dict[str, float]]]]:
         self.validate_arguments([model], [environment_id])
 
         if not self.enable_frequency_sketches:
@@ -904,7 +904,7 @@ class RedisTSDB(BaseTSDB):
         def unpack_response(response: rb.Promise) -> dict[str, float]:
             return {item.decode("utf-8"): float(score) for item, score in response.value}
 
-        results: dict[str, Iterable[Any]] = {}
+        results: dict[str, list[tuple[int, dict[str, float]]]] = {}
         cluster, _ = self.get_cluster(environment_id)
         for key, responses in cluster.execute_commands(commands).items():
             zipped_series = zip(series, (unpack_response(response) for response in responses))
@@ -964,19 +964,19 @@ class RedisTSDB(BaseTSDB):
     def get_frequency_totals(
         self,
         model: TSDBModel,
-        items: Mapping[str, Sequence[str]],
+        items: Mapping[TSDBKey, Sequence[TSDBItem]],
         start: datetime,
         end: datetime | None = None,
         rollup: int | None = None,
         environment_id: int | None = None,
         tenant_ids: dict[str, str | int] | None = None,
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[TSDBKey, dict[TSDBItem, float]]:
         self.validate_arguments([model], [environment_id])
 
         if not self.enable_frequency_sketches:
             raise NotImplementedError("Frequency sketches are disabled.")
 
-        responses: dict[str, dict[str, float]] = {}
+        responses: dict[TSDBKey, dict[TSDBItem, float]] = {}
         frequency_series = self.get_frequency_series(
             model, items, start, end, rollup, environment_id
         )

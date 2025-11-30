@@ -198,6 +198,11 @@ def create_feedback_issue(event, project_id: int, source: FeedbackCreationSource
         except Exception:
             # until we have LLM error types ironed out, just catch all exceptions
             logger.exception("Error checking if message is spam")
+        metrics.incr(
+            "feedback.create_feedback_issue.spam_detection",
+            tags={"is_spam": is_message_spam},
+            sample_rate=1.0,
+        )
 
     # Note that some of the fields below like title and subtitle
     # are not used by the feedback UI, but are required.
@@ -328,6 +333,10 @@ def shim_to_feedback(
                 feedback_event["contexts"]["feedback"]["replay_id"] = event.data["contexts"][
                     "replay"
                 ]["replay_id"]
+
+            if get_path(event.data, "contexts", "trace", "trace_id"):
+                feedback_event["contexts"]["trace"] = event.data["contexts"]["trace"]
+
             feedback_event["timestamp"] = event.datetime.timestamp()
             feedback_event["level"] = event.data["level"]
             feedback_event["platform"] = event.platform

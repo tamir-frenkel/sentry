@@ -9,7 +9,8 @@ import {generateStats} from 'sentry/components/events/opsBreakdown';
 import QuestionTooltip from 'sentry/components/questionTooltip';
 import {PAGE_URL_PARAM} from 'sentry/constants/pageFilters';
 import {t} from 'sentry/locale';
-import type {EventTransaction, Organization} from 'sentry/types';
+import type {EventTransaction} from 'sentry/types/event';
+import type {Organization} from 'sentry/types/organization';
 import getDynamicText from 'sentry/utils/getDynamicText';
 import {useTraceAverageTransactionDuration} from 'sentry/views/performance/newTraceDetails/traceApi/useTraceAverageTransactionDuration';
 import type {
@@ -138,7 +139,10 @@ function GeneralInfo({
         linkTarget={transactionSummaryRouteWithQuery({
           orgSlug: organization.slug,
           transaction: node.value.transaction,
-          query: omit(location.query, Object.values(PAGE_URL_PARAM)),
+          // Omit the query from the target url, as we dont know where it may have came from
+          // and if its syntax is supported on the target page. In this example, txn search does
+          // not support is:filter type expressions (and possibly other expressions we dont know about)
+          query: omit(location.query, Object.values(PAGE_URL_PARAM).concat('query')),
           projectID: String(node.value.project_id),
         })}
         linkText={t('View transaction summary')}

@@ -22,6 +22,7 @@ from .first_cron_checkin_sent import *  # noqa: F401,F403
 from .first_custom_metric_sent import *  # noqa: F401,F403
 from .first_event_sent import *  # noqa: F401,F403
 from .first_feedback_sent import *  # noqa: F401,F403
+from .first_insight_span_sent import *  # noqa: F401,F403
 from .first_new_feedback_sent import *  # noqa: F401,F403
 from .first_profile_sent import *  # noqa: F401,F403
 from .first_release_tag_sent import *  # noqa: F401,F403
@@ -74,6 +75,7 @@ from .release_created import *  # noqa: F401,F403
 from .release_get_previous_commits import *  # noqa: F401,F403
 from .release_set_commits import *  # noqa: F401,F403
 from .relocation_created import *  # noqa: F401,F403
+from .relocation_forked import *  # noqa: F401,F403
 from .relocation_organization_imported import *  # noqa: F401,F403
 from .repo_linked import *  # noqa: F401,F403
 from .rule_disable_opt_out import *  # noqa: F401,F403

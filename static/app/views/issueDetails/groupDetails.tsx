@@ -22,9 +22,11 @@ import {TabPanels, Tabs} from 'sentry/components/tabs';
 import {t} from 'sentry/locale';
 import GroupStore from 'sentry/stores/groupStore';
 import {space} from 'sentry/styles/space';
-import type {Group, Organization, Project} from 'sentry/types';
-import {GroupStatus, IssueCategory, IssueType} from 'sentry/types';
 import type {Event} from 'sentry/types/event';
+import type {Group} from 'sentry/types/group';
+import {GroupStatus, IssueCategory, IssueType} from 'sentry/types/group';
+import type {Organization} from 'sentry/types/organization';
+import type {Project} from 'sentry/types/project';
 import {defined} from 'sentry/utils';
 import {trackAnalytics} from 'sentry/utils/analytics';
 import {browserHistory} from 'sentry/utils/browserHistory';
@@ -43,7 +45,9 @@ import recreateRoute from 'sentry/utils/recreateRoute';
 import useDisableRouteAnalytics from 'sentry/utils/routeAnalytics/useDisableRouteAnalytics';
 import useRouteAnalyticsEventNames from 'sentry/utils/routeAnalytics/useRouteAnalyticsEventNames';
 import useRouteAnalyticsParams from 'sentry/utils/routeAnalytics/useRouteAnalyticsParams';
+import normalizeUrl from 'sentry/utils/url/normalizeUrl';
 import useApi from 'sentry/utils/useApi';
+import {useDetailedProject} from 'sentry/utils/useDetailedProject';
 import {useLocation} from 'sentry/utils/useLocation';
 import {useMemoWithPrevious} from 'sentry/utils/useMemoWithPrevious';
 import useOrganization from 'sentry/utils/useOrganization';
@@ -51,12 +55,11 @@ import {useParams} from 'sentry/utils/useParams';
 import useProjects from 'sentry/utils/useProjects';
 import useRouter from 'sentry/utils/useRouter';
 import {useUser} from 'sentry/utils/useUser';
-import {normalizeUrl} from 'sentry/utils/withDomainRequired';
-
-import {ERROR_TYPES} from './constants';
-import GroupHeader from './header';
-import SampleEventAlert from './sampleEventAlert';
-import {Tab, TabPaths} from './types';
+import GroupHeader from 'sentry/views/issueDetails//header';
+import {ERROR_TYPES} from 'sentry/views/issueDetails/constants';
+import SampleEventAlert from 'sentry/views/issueDetails/sampleEventAlert';
+import StreamlinedGroupHeader from 'sentry/views/issueDetails/streamlinedHeader';
+import {Tab, TabPaths} from 'sentry/views/issueDetails/types';
 import {
   getGroupDetailsQueryData,
   getGroupEventDetailsQueryData,
@@ -65,8 +68,9 @@ import {
   ReprocessingStatus,
   useDefaultIssueEvent,
   useEnvironmentsFromUrl,
-  useFetchIssueTagsForDetailsPage,
-} from './utils';
+  useHasStreamlinedUI,
+  useIsSampleEvent,
+} from 'sentry/views/issueDetails/utils';
 
 type Error = (typeof ERROR_TYPES)[keyof typeof ERROR_TYPES] | null;
 
@@ -682,6 +686,8 @@ function GroupDetailsContent({
 
   const environments = useEnvironmentsFromUrl();
 
+  const hasStreamlinedUI = useHasStreamlinedUI();
+
   useTrackView({group, event, project, tab: currentTab});
 
   const childProps = {
@@ -701,14 +707,23 @@ function GroupDetailsContent({
       value={currentTab}
       onChange={tab => trackTabChanged({tab, group, project, event, organization})}
     >
-      <GroupHeader
-        organization={organization}
-        groupReprocessingStatus={groupReprocessingStatus}
-        event={event ?? undefined}
-        group={group}
-        baseUrl={baseUrl}
-        project={project as Project}
-      />
+      {hasStreamlinedUI ? (
+        <StreamlinedGroupHeader
+          group={group}
+          project={project}
+          groupReprocessingStatus={groupReprocessingStatus}
+          baseUrl={baseUrl}
+        />
+      ) : (
+        <GroupHeader
+          organization={organization}
+          groupReprocessingStatus={groupReprocessingStatus}
+          event={event ?? undefined}
+          group={group}
+          baseUrl={baseUrl}
+          project={project as Project}
+        />
+      )}
       <GroupTabPanels>
         <TabPanels.Item key={currentTab}>
           {isValidElement(children) ? cloneElement(children, childProps) : children}
@@ -728,6 +743,15 @@ function GroupDetailsPageContent(props: GroupDetailsProps & FetchGroupDetailsSta
     initiallyLoaded: projectsLoaded,
     fetchError: errorFetchingProjects,
   } = useProjects({slugs: projectSlug ? [projectSlug] : []});
+
+  // Preload detailed project data for highlighted data section
+  useDetailedProject(
+    {
+      orgSlug: organization.slug,
+      projectSlug: projectSlug ?? '',
+    },
+    {enabled: !!projectSlug}
+  );
 
   const project = projects.find(({slug}) => slug === projectSlug);
   const projectWithFallback = project ?? projects[0];
@@ -807,22 +831,8 @@ function GroupDetailsPageContent(props: GroupDetailsProps & FetchGroupDetailsSta
 
 function GroupDetails(props: GroupDetailsProps) {
   const organization = useOrganization();
-  const router = useRouter();
-
   const {group, ...fetchGroupDetailsProps} = useFetchGroupDetails();
-
-  const environments = useEnvironmentsFromUrl();
-
-  const {data} = useFetchIssueTagsForDetailsPage(
-    {
-      groupId: router.params.groupId,
-      orgSlug: organization.slug,
-      environment: environments,
-    },
-    // Don't want this query to take precedence over the main requests
-    {enabled: defined(group)}
-  );
-  const isSampleError = data?.some(tag => tag.key === 'sample_event') ?? false;
+  const isSampleError = useIsSampleEvent();
 
   const getGroupDetailsTitle = () => {
     const defaultTitle = 'Sentry';

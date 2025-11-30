@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.db import models
 from django.utils import timezone
 
+from sentry.audit_log.services.log import UserIpEvent, log_service
 from sentry.backup.dependencies import (
     ImportKind,
     NormalizedModelName,
@@ -17,9 +18,8 @@ from sentry.backup.helpers import ImportFlags
 from sentry.backup.sanitize import SanitizableField, Sanitizer
 from sentry.backup.scopes import ImportScope, RelocationScope
 from sentry.db.models import FlexibleForeignKey, Model, control_silo_model, sane_repr
-from sentry.models.user import User
-from sentry.services.hybrid_cloud.log import UserIpEvent, log_service
-from sentry.services.hybrid_cloud.user import RpcUser
+from sentry.users.models.user import User
+from sentry.users.services.user import RpcUser
 from sentry.utils.geo import geo_by_addr
 
 
@@ -59,7 +59,7 @@ class UserIP(Model):
     def normalize_before_relocation_import(
         self, pk_map: PrimaryKeyMap, scope: ImportScope, flags: ImportFlags
     ) -> int | None:
-        from sentry.models.user import User
+        from sentry.users.models.user import User
 
         old_user_id = self.user_id
         old_pk = super().normalize_before_relocation_import(pk_map, scope, flags)

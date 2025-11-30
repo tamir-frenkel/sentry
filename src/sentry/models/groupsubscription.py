@@ -9,7 +9,6 @@ from django.utils import timezone
 
 from sentry.backup.scopes import RelocationScope
 from sentry.db.models import (
-    BaseManager,
     BoundedPositiveIntegerField,
     FlexibleForeignKey,
     Model,
@@ -17,21 +16,22 @@ from sentry.db.models import (
     sane_repr,
 )
 from sentry.db.models.fields.hybrid_cloud_foreign_key import HybridCloudForeignKey
+from sentry.db.models.manager.base import BaseManager
 from sentry.integrations.types import ExternalProviders
+from sentry.notifications.services import notifications_service
 from sentry.notifications.types import (
     GroupSubscriptionReason,
     NotificationSettingEnum,
     NotificationSettingsOptionEnum,
 )
-from sentry.services.hybrid_cloud.notifications import notifications_service
-from sentry.services.hybrid_cloud.user import RpcUser
 from sentry.types.actor import Actor
+from sentry.users.services.user import RpcUser
 
 if TYPE_CHECKING:
     from sentry.models.group import Group
     from sentry.models.team import Team
-    from sentry.models.user import User
     from sentry.notifications.utils.participants import ParticipantMap
+    from sentry.users.models.user import User
 
 
 class GroupSubscriptionManager(BaseManager["GroupSubscription"]):
@@ -46,7 +46,7 @@ class GroupSubscriptionManager(BaseManager["GroupSubscription"]):
         unsubscribed.
         """
         from sentry.models.team import Team
-        from sentry.models.user import User
+        from sentry.users.models.user import User
 
         try:
             with transaction.atomic(router.db_for_write(GroupSubscription)):
@@ -78,7 +78,7 @@ class GroupSubscriptionManager(BaseManager["GroupSubscription"]):
     ) -> bool | None:
         from sentry import features
         from sentry.models.team import Team
-        from sentry.models.user import User
+        from sentry.users.models.user import User
 
         if isinstance(actor, (RpcUser, User)):
             return self.subscribe(group, actor, reason)

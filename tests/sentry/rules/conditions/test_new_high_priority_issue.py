@@ -14,8 +14,7 @@ class NewHighPriorityIssueConditionTest(RuleTestCase):
     def setUp(self):
         self.rule = Rule(environment_id=1, project=self.project, label="label")
 
-    @with_feature("projects:high-priority-alerts")
-    @with_feature("projects:issue-priority")
+    @with_feature("organizations:priority-ga-features")
     def test_applies_correctly_with_high_priority_alerts(self):
         self.project.flags.has_high_priority_alerts = True
         self.project.save()
@@ -35,8 +34,7 @@ class NewHighPriorityIssueConditionTest(RuleTestCase):
         self.event.group.update(priority=PriorityLevel.LOW)
         self.assertDoesNotPass(rule, is_new_group_environment=True)
 
-    @with_feature("projects:high-priority-alerts")
-    @with_feature("projects:issue-priority")
+    @with_feature("organizations:priority-ga-features")
     def test_applies_correctly_without_high_priority_alerts(self):
         self.project.flags.has_high_priority_alerts = False
         self.project.save()

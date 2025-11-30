@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useMemo, useRef} from 'react';
 import {css} from '@emotion/react';
 import styled from '@emotion/styled';
 
@@ -9,7 +9,6 @@ import ButtonBar from 'sentry/components/buttonBar';
 import ErrorBoundary from 'sentry/components/errorBoundary';
 import {ContextCardContent} from 'sentry/components/events/contexts/contextCard';
 import {getContextMeta} from 'sentry/components/events/contexts/utils';
-import {EventDataSection} from 'sentry/components/events/eventDataSection';
 import {
   TreeColumn,
   TreeContainer,
@@ -23,33 +22,97 @@ import {
   getHighlightTagData,
   HIGHLIGHT_DOCS_LINK,
 } from 'sentry/components/events/highlights/util';
-import useFeedbackWidget from 'sentry/components/feedback/widget/useFeedbackWidget';
 import ExternalLink from 'sentry/components/links/externalLink';
 import LoadingIndicator from 'sentry/components/loadingIndicator';
 import {IconEdit, IconMegaphone} from 'sentry/icons';
 import {t, tct} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
-import type {Event, Group, Project} from 'sentry/types';
+import type {Event} from 'sentry/types/event';
+import type {Project} from 'sentry/types/project';
 import {trackAnalytics} from 'sentry/utils/analytics';
 import theme from 'sentry/utils/theme';
 import {useDetailedProject} from 'sentry/utils/useDetailedProject';
+import {useFeedbackForm} from 'sentry/utils/useFeedbackForm';
 import {useLocation} from 'sentry/utils/useLocation';
 import useOrganization from 'sentry/utils/useOrganization';
+import {FoldSectionKey} from 'sentry/views/issueDetails/streamline/foldSection';
+import {InterimSection} from 'sentry/views/issueDetails/streamline/interimSection';
+import {useHasStreamlinedUI} from 'sentry/views/issueDetails/utils';
 
 interface HighlightsDataSectionProps {
   event: Event;
-  group: Group;
   project: Project;
   viewAllRef?: React.RefObject<HTMLElement>;
+}
+
+function useOpenEditHighlightsModal({
+  detailedProject,
+  event,
+}: {
+  event: Event;
+  detailedProject?: Project;
+}) {
+  const organization = useOrganization();
+  const isProjectAdmin = hasEveryAccess(['project:admin'], {
+    organization: organization,
+    project: detailedProject,
+  });
+
+  const editProps = useMemo(
+    () => ({
+      disabled: !isProjectAdmin,
+      title: !isProjectAdmin ? t('Only Project Admins can edit highlights.') : undefined,
+    }),
+    [isProjectAdmin]
+  );
+
+  const openEditHighlightsModal = useCallback(() => {
+    trackAnalytics('highlights.issue_details.edit_clicked', {organization});
+    openModal(
+      deps => (
+        <EditHighlightsModal
+          event={event}
+          highlightContext={detailedProject?.highlightContext ?? {}}
+          highlightTags={detailedProject?.highlightTags ?? []}
+          highlightPreset={detailedProject?.highlightPreset}
+          project={detailedProject!}
+          {...deps}
+        />
+      ),
+      {modalCss: highlightModalCss}
+    );
+  }, [organization, detailedProject, event]);
+
+  return {openEditHighlightsModal, editProps};
+}
+
+function EditHighlightsButton({project, event}: {event: Event; project: Project}) {
+  const organization = useOrganization();
+  const {isLoading, data: detailedProject} = useDetailedProject({
+    orgSlug: organization.slug,
+    projectSlug: project.slug,
+  });
+  const {openEditHighlightsModal, editProps} = useOpenEditHighlightsModal({
+    detailedProject,
+    event,
+  });
+  return (
+    <Button
+      size="xs"
+      icon={<IconEdit />}
+      onClick={openEditHighlightsModal}
+      title={editProps.title}
+      disabled={isLoading || editProps.disabled}
+    >
+      {t('Edit')}
+    </Button>
+  );
 }
 
 function HighlightsData({
   event,
   project,
-  createEditAction,
-}: Pick<HighlightsDataSectionProps, 'event' | 'project'> & {
-  createEditAction: (action: React.ReactNode) => void;
-}) {
+}: Pick<HighlightsDataSectionProps, 'event' | 'project'>) {
   const organization = useOrganization();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,6 +120,10 @@ function HighlightsData({
   const {isLoading, data: detailedProject} = useDetailedProject({
     orgSlug: organization.slug,
     projectSlug: project.slug,
+  });
+  const {openEditHighlightsModal, editProps} = useOpenEditHighlightsModal({
+    detailedProject,
+    event,
   });
 
   const highlightContext = useMemo(
@@ -125,49 +192,6 @@ function HighlightsData({
     );
   }
 
-  const openEditHighlightsModal = useCallback(() => {
-    trackAnalytics('highlights.issue_details.edit_clicked', {organization});
-    openModal(
-      deps => (
-        <EditHighlightsModal
-          event={event}
-          highlightContext={highlightContext}
-          highlightTags={highlightTags}
-          project={detailedProject ?? project}
-          highlightPreset={detailedProject?.highlightPreset}
-          {...deps}
-        />
-      ),
-      {modalCss: highlightModalCss}
-    );
-  }, [detailedProject, event, highlightContext, highlightTags, organization, project]);
-
-  const isProjectAdmin = hasEveryAccess(['project:admin'], {
-    organization: organization,
-    project: detailedProject,
-  });
-
-  const editProps = useMemo(
-    () => ({
-      disabled: !isProjectAdmin,
-      title: !isProjectAdmin ? t('Only Project Admins can edit highlights.') : undefined,
-    }),
-    [isProjectAdmin]
-  );
-
-  useEffect(() => {
-    createEditAction(
-      <Button
-        size="xs"
-        icon={<IconEdit />}
-        onClick={openEditHighlightsModal}
-        {...editProps}
-      >
-        {t('Edit')}
-      </Button>
-    );
-  }, [createEditAction, editProps, openEditHighlightsModal]);
-
   return (
     <HighlightContainer columnCount={columnCount} ref={containerRef}>
       {isLoading ? (
@@ -194,40 +218,14 @@ function HighlightsData({
   );
 }
 
-function HighlightsFeedback() {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const feedback = useFeedbackWidget({
-    buttonRef,
-    messagePlaceholder: t(
-      'How can we make tags, context or highlights more useful to you?'
-    ),
-  });
-
-  if (!feedback) {
-    return null;
-  }
-
-  return (
-    <Button
-      ref={buttonRef}
-      aria-label={t('Give Feedback')}
-      icon={<IconMegaphone />}
-      size={'xs'}
-    >
-      {t('Feedback')}
-    </Button>
-  );
-}
-
 export default function HighlightsDataSection({
   viewAllRef,
-  ...props
+  event,
+  project,
 }: HighlightsDataSectionProps) {
   const organization = useOrganization();
-  // XXX: A bit convoluted to have the edit action created by the child component, but this allows
-  // us to wrap it with an Error Boundary and still display the EventDataSection header if something
-  // goes wrong
-  const [editAction, setEditAction] = useState<React.ReactNode>(null);
+  const openForm = useFeedbackForm();
+  const hasStreamlinedUI = useHasStreamlinedUI();
 
   const viewAllButton = viewAllRef ? (
     <Button
@@ -242,10 +240,10 @@ export default function HighlightsDataSection({
   ) : null;
 
   return (
-    <EventDataSection
+    <InterimSection
       key="event-highlights"
-      type="event-highlights"
-      title={t('Event Highlights')}
+      type={FoldSectionKey.HIGHLIGHTS}
+      title={hasStreamlinedUI ? t('Highlights') : t('Event Highlights')}
       help={tct(
         'Promoted tags and context items saved for this project. [link:Learn more]',
         {
@@ -255,17 +253,38 @@ export default function HighlightsDataSection({
       isHelpHoverable
       data-test-id="event-highlights"
       actions={
-        <ButtonBar gap={1}>
-          <HighlightsFeedback />
-          {viewAllButton}
-          {editAction}
-        </ButtonBar>
+        <ErrorBoundary mini>
+          <ButtonBar gap={1}>
+            {openForm && (
+              <Button
+                aria-label={t('Give Feedback')}
+                icon={<IconMegaphone />}
+                size={'xs'}
+                onClick={() =>
+                  openForm({
+                    messagePlaceholder: t(
+                      'How can we make tags, context or highlights more useful to you?'
+                    ),
+                    tags: {
+                      ['feedback.source']: 'issue_details_highlights',
+                      ['feedback.owner']: 'issues',
+                    },
+                  })
+                }
+              >
+                {t('Feedback')}
+              </Button>
+            )}
+            {viewAllButton}
+            <EditHighlightsButton project={project} event={event} />
+          </ButtonBar>
+        </ErrorBoundary>
       }
     >
       <ErrorBoundary mini message={t('There was an error loading event highlights')}>
-        <HighlightsData {...props} createEditAction={setEditAction} />
+        <HighlightsData event={event} project={project} />
       </ErrorBoundary>
-    </EventDataSection>
+    </InterimSection>
   );
 }
 

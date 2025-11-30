@@ -9,7 +9,12 @@ from celery.exceptions import Retry
 from django.utils import timezone
 
 from sentry.integrations.github.integration import GitHubIntegrationProvider
-from sentry.integrations.mixins.commit_context import CommitInfo, FileBlameInfo, SourceLineInfo
+from sentry.integrations.services.integration import integration_service
+from sentry.integrations.source_code_management.commit_context import (
+    CommitInfo,
+    FileBlameInfo,
+    SourceLineInfo,
+)
 from sentry.models.commit import Commit
 from sentry.models.commitauthor import CommitAuthor
 from sentry.models.groupowner import GroupOwner, GroupOwnerType
@@ -21,7 +26,6 @@ from sentry.models.pullrequest import (
     PullRequestCommit,
 )
 from sentry.models.repository import Repository
-from sentry.services.hybrid_cloud.integration import integration_service
 from sentry.shared_integrations.exceptions import ApiError
 from sentry.tasks.commit_context import (
     PR_COMMENT_WINDOW,
@@ -36,7 +40,7 @@ from sentry.utils.committers import get_frame_paths
 pytestmark = [requires_snuba]
 
 
-class TestCommitContextMixin(TestCase):
+class TestCommitContextIntegration(TestCase):
     def setUp(self):
         self.project = self.create_project()
         self.repo = Repository.objects.create(
@@ -95,7 +99,7 @@ class TestCommitContextMixin(TestCase):
         )
 
 
-class TestCommitContextAllFrames(TestCommitContextMixin):
+class TestCommitContextAllFrames(TestCommitContextIntegration):
     def setUp(self):
         super().setUp()
         self.blame_recent = FileBlameInfo(
@@ -241,6 +245,7 @@ class TestCommitContextAllFrames(TestCommitContextMixin):
             organization_id=self.organization.id, email="admin2@localhost"
         )
         created_commit = Commit.objects.get(key="commit-id")
+        assert created_commit.author is not None
         assert created_commit.author.id == created_commit_author.id
 
         assert created_commit.organization_id == self.organization.id
@@ -726,15 +731,6 @@ class TestCommitContextAllFrames(TestCommitContextMixin):
             },
             {
                 "function": "something_else",
-                "abs_path": "/usr/src/sentry/src/sentry/invalid_1.py",
-                "module": "sentry.invalid_1",
-                "in_app": True,
-                # Bad path with backslashes
-                "filename": "sentry/invalid_1.py\\other",
-                "lineno": 39,
-            },
-            {
-                "function": "something_else",
                 "abs_path": "/usr/src/sentry/src/sentry/invalid_2.py",
                 "module": "sentry.invalid_2",
                 "in_app": True,
@@ -794,7 +790,7 @@ class TestCommitContextAllFrames(TestCommitContextMixin):
             group_id=self.event.group_id,
             event_id=self.event.event_id,
             # 1 was a duplicate, 2 filtered out because of missing properties
-            num_frames=3,
+            num_frames=2,
             num_unique_commits=1,
             num_unique_commit_authors=1,
             # Only 1 successfully mapped frame of the 6 total
@@ -808,8 +804,8 @@ class TestCommitContextAllFrames(TestCommitContextMixin):
 @patch(
     "sentry.integrations.github.GitHubIntegration.get_commit_context_all_frames", return_value=[]
 )
-@patch("sentry.tasks.integrations.github.pr_comment.github_comment_workflow.delay")
-class TestGHCommentQueuing(IntegrationTestCase, TestCommitContextMixin):
+@patch("sentry.integrations.github.tasks.pr_comment.github_comment_workflow.delay")
+class TestGHCommentQueuing(IntegrationTestCase, TestCommitContextIntegration):
     provider = GitHubIntegrationProvider
     base_url = "https://api.github.com"
 
@@ -1165,7 +1161,7 @@ class TestGHCommentQueuing(IntegrationTestCase, TestCommitContextMixin):
         groupowner = GroupOwner.objects.create(
             group_id=self.event.group_id,
             type=GroupOwnerType.SUSPECT_COMMIT.value,
-            user_id="1",
+            user_id=1,
             project_id=self.event.project_id,
             organization_id=self.project.organization_id,
             context={"commitId": self.commit.id},
@@ -1200,7 +1196,7 @@ class TestGHCommentQueuing(IntegrationTestCase, TestCommitContextMixin):
         groupowner = GroupOwner.objects.create(
             group_id=self.event.group_id,
             type=GroupOwnerType.SUSPECT_COMMIT.value,
-            user_id="1",
+            user_id=1,
             project_id=self.event.project_id,
             organization_id=self.project.organization_id,
             context={"commitId": self.commit.id},

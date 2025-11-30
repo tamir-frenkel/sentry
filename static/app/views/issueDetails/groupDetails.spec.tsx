@@ -15,8 +15,9 @@ import GroupStore from 'sentry/stores/groupStore';
 import OrganizationStore from 'sentry/stores/organizationStore';
 import PageFiltersStore from 'sentry/stores/pageFiltersStore';
 import ProjectsStore from 'sentry/stores/projectsStore';
-import type {Environment, Group} from 'sentry/types';
+import type {Group} from 'sentry/types/group';
 import {IssueCategory} from 'sentry/types/group';
+import type {Environment} from 'sentry/types/project';
 import GroupDetails from 'sentry/views/issueDetails/groupDetails';
 
 jest.unmock('sentry/utils/recreateRoute');
@@ -157,6 +158,10 @@ describe('groupDetails', () => {
       url: '/organizations/org-slug/replay-count/',
       body: {},
     });
+    MockApiClient.addMockResponse({
+      url: `/projects/${defaultInit.organization.slug}/${project.slug}/`,
+      body: project,
+    });
   });
 
   afterEach(() => {
@@ -288,6 +293,10 @@ describe('groupDetails', () => {
     MockApiClient.addMockResponse({
       url: `/organizations/${defaultInit.organization.slug}/issues/${group.id}/`,
       body: {...group, project: {slug: 'other-project-slug'}},
+    });
+    MockApiClient.addMockResponse({
+      url: `/projects/${defaultInit.organization.slug}/other-project-slug/`,
+      body: {},
     });
 
     createWrapper();

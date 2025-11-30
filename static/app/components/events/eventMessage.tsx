@@ -5,7 +5,7 @@ import UnhandledTag from 'sentry/components/group/inboxBadges/unhandledTag';
 import {t} from 'sentry/locale';
 import {space} from 'sentry/styles/space';
 import {EventOrGroupType, type Level} from 'sentry/types/event';
-import useOrganization from 'sentry/utils/useOrganization';
+import {useHasStreamlinedUI} from 'sentry/views/issueDetails/utils';
 
 type Props = {
   type: EventOrGroupType;
@@ -32,9 +32,12 @@ function EventOrGroupLevel({
   level,
   levelIndicatorSize,
   type,
-}: Pick<Props, 'level' | 'levelIndicatorSize' | 'type'>) {
+  showUnhandled,
+}: Pick<Props, 'level' | 'levelIndicatorSize' | 'type' | 'showUnhandled'>) {
   if (level && EVENT_TYPES_WITH_LOG_LEVEL.has(type)) {
-    return <ErrorLevel level={level} size={levelIndicatorSize} />;
+    return (
+      <ErrorLevel level={level} size={levelIndicatorSize} showUnhandled={showUnhandled} />
+    );
   }
 
   return null;
@@ -49,33 +52,16 @@ function EventMessage({
   type,
   showUnhandled = false,
 }: Props) {
-  const organization = useOrganization({allowNull: true});
-  const hasIssuePriority = organization?.features.includes('issue-priority-ui');
-
-  if (!hasIssuePriority) {
-    return (
-      <LevelMessageContainer className={className}>
-        {level ? (
-          <EventOrGroupLevel
-            level={level}
-            levelIndicatorSize={levelIndicatorSize}
-            type={type}
-          />
-        ) : null}
-        {showUnhandled ? <UnhandledTag /> : null}
-        {message ? <Message>{message}</Message> : null}
-      </LevelMessageContainer>
-    );
-  }
-
+  const hasStreamlinedUI = useHasStreamlinedUI();
   return (
     <LevelMessageContainer className={className}>
       <EventOrGroupLevel
         level={level}
         levelIndicatorSize={levelIndicatorSize}
         type={type}
+        showUnhandled={showUnhandled}
       />
-      {showUnhandled ? <UnhandledTag /> : null}
+      {showUnhandled && !hasStreamlinedUI ? <UnhandledTag /> : null}
       {message ? (
         <Message>{message}</Message>
       ) : (

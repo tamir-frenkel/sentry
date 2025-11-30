@@ -1,10 +1,22 @@
-import type {MetricMeta} from 'sentry/types/metrics';
+import {initializeOrg} from 'sentry-test/initializeOrg';
+import {
+  render,
+  renderGlobalModal,
+  screen,
+  userEvent,
+} from 'sentry-test/reactTestingLibrary';
 
-import {getMetricsWithDuplicateNames} from '.';
+import type {MetricMeta, UseCase} from 'sentry/types/metrics';
 
-function createMetricMeta(name: string, unit: string): MetricMeta {
+import {getMetricsWithDuplicateNames, MRISelect} from '.';
+
+function createMetricMeta(
+  name: string,
+  unit: string,
+  useCase: UseCase = 'custom'
+): MetricMeta {
   return {
-    mri: `d:custom/${name}@${unit}`,
+    mri: `d:${useCase}/${name}@${unit}`,
     blockingStatus: [],
     operations: [],
     projectIds: [],
@@ -55,5 +67,57 @@ describe('getMetricsWithDuplicateNames', () => {
     ];
     const result = getMetricsWithDuplicateNames(metrics);
     expect(result).toEqual(new Set());
+  });
+
+  it('should return empty set for duplicates across use cases', () => {
+    const metrics: MetricMeta[] = [
+      createMetricMeta('metric1', 'none', 'custom'),
+      createMetricMeta('metric1', 'seconds', 'metric_stats'),
+      createMetricMeta('metric1', 'milliseconds', 'sessions'),
+      createMetricMeta('metric1', 'bytes', 'spans'),
+      createMetricMeta('metric1', 'bits', 'transactions'),
+    ];
+    const result = getMetricsWithDuplicateNames(metrics);
+    expect(result).toEqual(new Set([]));
+  });
+
+  it('by clicking on the "create metric" button the metric modal shall be opened', async function () {
+    const {project, organization} = initializeOrg({
+      organization: {features: ['metrics-new-inputs']},
+    });
+
+    render(
+      <MRISelect
+        onChange={jest.fn()}
+        onTagClick={jest.fn()}
+        onOpenMenu={jest.fn()}
+        isLoading={false}
+        metricsMeta={[
+          {
+            blockingStatus: [],
+            mri: 'c:custom/span.duration@none',
+            operations: ['sum'],
+            projectIds: [Number(project.id)],
+            type: 'c',
+            unit: 'none',
+          },
+        ]}
+        projects={[Number(project)]}
+        value="d:spans/duration@millisecond"
+      />,
+      {
+        organization,
+      }
+    );
+
+    renderGlobalModal();
+
+    await userEvent.click(screen.getByLabelText('Metric'));
+    await userEvent.click(screen.getByRole('button', {name: 'Create Metric'}));
+    expect(screen.getByText(/Don’t see your span attribute/)).toBeInTheDocument();
+
+    expect(
+      await screen.findByRole('heading', {name: 'Create Metric'})
+    ).toBeInTheDocument();
   });
 });

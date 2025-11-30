@@ -21,8 +21,9 @@ import platforms from 'sentry/data/platforms';
 import {t} from 'sentry/locale';
 import ConfigStore from 'sentry/stores/configStore';
 import {space} from 'sentry/styles/space';
-import type {OnboardingSelectedSDK, PlatformIntegration, PlatformKey} from 'sentry/types';
 import type {IssueAlertRule} from 'sentry/types/alerts';
+import type {OnboardingSelectedSDK} from 'sentry/types/onboarding';
+import type {PlatformIntegration, PlatformKey} from 'sentry/types/project';
 import {trackAnalytics} from 'sentry/utils/analytics';
 import {useApiQuery} from 'sentry/utils/queryClient';
 import {decodeList} from 'sentry/utils/queryString';
@@ -56,6 +57,7 @@ export function ProjectInstallPlatform({location, params}: Props) {
   const gettingStartedWithProjectContext = useContext(GettingStartedWithProjectContext);
 
   const isSelfHosted = ConfigStore.get('isSelfHosted');
+  const isSelfHostedErrorsOnly = ConfigStore.get('isSelfHostedErrorsOnly');
 
   const {projects, initiallyLoaded} = useProjects({
     slugs: [params.projectId],
@@ -236,18 +238,20 @@ export function ProjectInstallPlatform({location, params}: Props) {
           >
             {t('Take me to Issues')}
           </Button>
-          <Button
-            busy={loadingProjects}
-            to={{
-              pathname: performanceOverviewLink,
-              query: {
-                project: project?.id,
-              },
-            }}
-          >
-            {t('Take me to Performance')}
-          </Button>
-          {showReplayButton && (
+          {!isSelfHostedErrorsOnly && (
+            <Button
+              busy={loadingProjects}
+              to={{
+                pathname: performanceOverviewLink,
+                query: {
+                  project: project?.id,
+                },
+              }}
+            >
+              {t('Take me to Performance')}
+            </Button>
+          )}
+          {!isSelfHostedErrorsOnly && showReplayButton && (
             <Button
               busy={loadingProjects}
               to={{

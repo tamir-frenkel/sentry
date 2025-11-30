@@ -1,7 +1,8 @@
 import type {LinkProps} from 'sentry/components/links/link';
 import {t} from 'sentry/locale';
-import type {MRI, Project} from 'sentry/types';
-import type {DiscoverDatasets} from 'sentry/utils/discover/types';
+import type {Organization} from 'sentry/types/organization';
+import type {Project} from 'sentry/types/project';
+import type {DiscoverDatasets, SavedQueryDatasets} from 'sentry/utils/discover/types';
 import {DisplayModes} from 'sentry/utils/discover/types';
 import {getMetricsUrl} from 'sentry/utils/metrics';
 import {parseField} from 'sentry/utils/metrics/mri';
@@ -23,10 +24,11 @@ interface PresetCta {
 }
 
 interface PresetCtaOpts {
-  orgSlug: string;
+  organization: Organization;
   projects: Project[];
   timePeriod: TimePeriodType;
   dataset?: DiscoverDatasets;
+  openInDiscoverDataset?: SavedQueryDatasets;
   query?: string;
   rule?: MetricRule;
 }
@@ -35,13 +37,15 @@ interface PresetCtaOpts {
  * Get the CTA used for alert rules that do not have a preset
  */
 export function makeDefaultCta({
-  orgSlug,
+  organization,
   projects,
   rule,
   timePeriod,
   query,
   dataset,
+  openInDiscoverDataset,
 }: PresetCtaOpts): PresetCta {
+  const orgSlug = organization.slug;
   if (!rule) {
     return {
       buttonText: t('Open in Discover'),
@@ -50,7 +54,7 @@ export function makeDefaultCta({
   }
 
   if (isCustomMetricField(rule.aggregate)) {
-    const {mri, op} = parseField(rule.aggregate) ?? {};
+    const {mri, aggregation} = parseField(rule.aggregate) ?? {};
     return {
       buttonText: t('Open in Metrics'),
       to: getMetricsUrl(orgSlug, {
@@ -66,8 +70,8 @@ export function makeDefaultCta({
         environment: rule.environment ? [rule.environment] : [],
         widgets: [
           {
-            mri: mri as MRI,
-            op: op as string,
+            mri,
+            aggregation,
             query: rule.query,
             displayType: MetricDisplayType.AREA,
           },
@@ -84,12 +88,13 @@ export function makeDefaultCta({
   return {
     buttonText: t('Open in Discover'),
     to: getMetricRuleDiscoverUrl({
-      orgSlug,
+      organization,
       projects,
       rule,
       timePeriod,
       query,
       extraQueryParams,
+      openInDiscoverDataset,
     }),
   };
 }

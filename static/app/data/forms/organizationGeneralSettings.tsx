@@ -1,6 +1,7 @@
 import type {JsonFormObject} from 'sentry/components/forms/types';
 import ExternalLink from 'sentry/components/links/externalLink';
 import {t, tct} from 'sentry/locale';
+import ConfigStore from 'sentry/stores/configStore';
 import type {BaseRole} from 'sentry/types/organization';
 import slugify from 'sentry/utils/slugify';
 
@@ -41,6 +42,7 @@ const formGroups: JsonFormObject[] = [
             <ExternalLink href="https://docs.sentry.io/product/accounts/early-adopter/" />
           ),
         }),
+        visible: () => !ConfigStore.get('isSelfHostedErrorsOnly'),
       },
       {
         name: 'aiSuggestedSolution',
@@ -54,6 +56,18 @@ const formGroups: JsonFormObject[] = [
             ),
           }
         ),
+        visible: () => !ConfigStore.get('isSelfHostedErrorsOnly'),
+      },
+      {
+        name: 'uptimeAutodetection',
+        type: 'boolean',
+        label: t('Automatically Configure Uptime Alerts'),
+        help: t('Detect most-used URLs for uptime monitoring.'),
+        // TOOD(epurkhiser): Currently there's no need for users to change this
+        // setting as it will just be confusing. In the future when
+        // autodetection is used for suggested URLs it will make more sense to
+        // for users to have the option to disable this.
+        visible: false,
       },
     ],
   },
@@ -64,7 +78,6 @@ const formGroups: JsonFormObject[] = [
       {
         name: 'defaultRole',
         type: 'select',
-        required: true,
         label: t('Default Role'),
         // seems weird to have choices in initial form data
         choices: ({initialData} = {}) =>
@@ -75,9 +88,20 @@ const formGroups: JsonFormObject[] = [
       {
         name: 'openMembership',
         type: 'boolean',
-        required: true,
         label: t('Open Membership'),
         help: t('Allow organization members to freely join any team'),
+      },
+      {
+        name: 'allowMemberProjectCreation',
+        type: 'boolean',
+        label: t('Let Members Create Projects'),
+        help: t('Allow organization members to create and configure new projects.'),
+        disabled: ({features, access}) =>
+          !access.has('org:write') || features.has('team-roles'),
+        disabledReason: ({features}) =>
+          !features.has('team-roles')
+            ? t('You must be on a business plan to toggle this feature.')
+            : undefined,
       },
       {
         name: 'eventsMemberAdmin',
