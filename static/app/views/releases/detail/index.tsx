@@ -153,7 +153,7 @@ class ReleasesDetail extends DeprecatedAsyncView<Props, State> {
           environment: location.query.environment ?? [],
           query: searchReleaseVersion(params.release),
           field: 'sum(session)',
-          statsPeriod: '90d',
+          statsPeriod: '730d',
           interval: '1d',
         },
       },

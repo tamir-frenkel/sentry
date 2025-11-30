@@ -1524,7 +1524,7 @@ describe('EventView.getEventsAPIPayload()', function () {
     let eventView = new EventView({
       ...REQUIRED_CONSTRUCTOR_PROPS,
       ...initialState,
-      statsPeriod: '90d',
+      statsPeriod: '730d',
       start: '2019-10-01T00:00:00',
       end: '2019-10-02T00:00:00',
     });
@@ -1541,7 +1541,7 @@ describe('EventView.getEventsAPIPayload()', function () {
 
     expect(eventView.getEventsAPIPayload(location)).toEqual({
       ...output,
-      statsPeriod: '90d',
+      statsPeriod: '730d',
     });
 
     // eventview's start/end has higher precedence than the date selection in the query string

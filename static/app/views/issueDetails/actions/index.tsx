@@ -115,7 +115,7 @@ export function Actions(props: Props) {
       query: `issue:${shortId}`,
       projects: [Number(project.id)],
       version: 2 as SavedQueryVersions,
-      range: '90d',
+      range: '730d',
       dataset:
         config.usesIssuePlatform || groupIsOccurrenceBacked
           ? DiscoverDatasets.ISSUE_PLATFORM

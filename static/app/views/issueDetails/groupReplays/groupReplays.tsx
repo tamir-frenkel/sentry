@@ -175,7 +175,7 @@ function GroupReplaysTable({
   const location = useLocation();
   const urlParams = useUrlParams();
   const {getReplayCountForIssue} = useReplayCountForIssues({
-    statsPeriod: '90d',
+    statsPeriod: '730d',
   });
 
   const replayListData = useReplayList({

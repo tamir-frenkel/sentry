@@ -79,7 +79,7 @@ function AllEventsTable(props: Props) {
     eventView.sorts = [{field: 'timestamp', kind: 'desc'}];
   }
 
-  eventView.statsPeriod = '90d';
+  eventView.statsPeriod = '730d';
 
   const isRegressionIssue =
     group.issueType === IssueType.PERFORMANCE_DURATION_REGRESSION ||

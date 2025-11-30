@@ -224,7 +224,7 @@ describe('Dashboards > WidgetQueries', function () {
       projects: [1],
       environments: ['prod', 'dev'],
       datetime: {
-        period: '90d',
+        period: '730d',
         start: null,
         end: null,
         utc: false,
@@ -250,7 +250,7 @@ describe('Dashboards > WidgetQueries', function () {
       expect.objectContaining({
         query: expect.objectContaining({
           interval: '4h',
-          statsPeriod: '90d',
+          statsPeriod: '730d',
           environment: ['prod', 'dev'],
           project: [1],
         }),
@@ -639,7 +639,7 @@ describe('Dashboards > WidgetQueries', function () {
         selection={{
           ...selection,
           datetime: {
-            period: '90d',
+            period: '730d'',
             start: null,
             end: null,
             utc: false,

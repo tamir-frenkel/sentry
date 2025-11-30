@@ -18,7 +18,7 @@ describe('IntervalSelector', function () {
   it('resets small interval', function () {
     let interval: string | undefined = '1s';
     eventView.interval = interval;
-    eventView.statsPeriod = '90d';
+    eventView.statsPeriod = '730d';
     const intervalSelector = (
       <IntervalSelector
         eventView={eventView}
@@ -46,7 +46,7 @@ describe('IntervalSelector', function () {
   });
   it('leaves default interval alone', function () {
     eventView.interval = undefined;
-    eventView.statsPeriod = '90d';
+    eventView.statsPeriod = '730d';
     let interval = 'not called';
     const intervalSelector = (
       <IntervalSelector

@@ -20,7 +20,7 @@ describe('useReplayCount', () => {
     dataSource: 'discover',
     fieldName: 'replay_id',
     organization,
-    statsPeriod: '90d',
+    statsPeriod: '730d',
   };
   const getMockRequest = (body: Record<string, number>) =>
     MockApiClient.addMockResponse({

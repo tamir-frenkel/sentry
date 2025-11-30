@@ -31,7 +31,7 @@ describe('Chart Utils', function () {
         expect(getInterval({period: '30d'}, 'high')).toBe('1h');
       });
       it('more than 60 days', function () {
-        expect(getInterval({period: '90d'}, 'high')).toBe('4h');
+        expect(getInterval({period: '730d'}, 'high')).toBe('4h');
       });
     });
 
@@ -58,8 +58,8 @@ describe('Chart Utils', function () {
         expect(getInterval({period: '30d'}, 'medium')).toBe('4h');
       });
       it('more than 90 days', function () {
-        expect(getInterval({period: '90d'})).toBe('1d');
-        expect(getInterval({period: '90d'}, 'medium')).toBe('1d');
+        expect(getInterval({period: '730d'})).toBe('1d');
+        expect(getInterval({period: '730d'}, 'medium')).toBe('1d');
       });
     });
 
@@ -81,14 +81,14 @@ describe('Chart Utils', function () {
         expect(getInterval({period: '30d'}, 'low')).toBe('1d');
       });
       it('more than 90 days', function () {
-        expect(getInterval({period: '90d'}, 'low')).toBe('2d');
+        expect(getInterval({period: '730d'}, 'low')).toBe('2d');
       });
     });
   });
 
   describe('getUsageInterval', function () {
     it('calculates intervals for a period', function () {
-      expect(getSeriesApiInterval({period: '90d'})).toBe('1d');
+      expect(getSeriesApiInterval({period: '730d'})).toBe('1d');
       expect(getSeriesApiInterval({period: '60d'})).toBe('1d');
 
       expect(getSeriesApiInterval({period: '59d'})).toBe('4h');

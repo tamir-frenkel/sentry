@@ -404,7 +404,7 @@ export async function fetchAnyReleaseExistence(
   const data = await api.requestPromise(`/organizations/${orgSlug}/releases/stats/`, {
     method: 'GET',
     query: {
-      statsPeriod: '90d',
+      statsPeriod: '730d',
       project: projectId,
       per_page: 1,
     },

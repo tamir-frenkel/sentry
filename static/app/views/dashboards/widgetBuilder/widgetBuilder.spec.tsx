@@ -1044,7 +1044,7 @@ describe('WidgetBuilder', function () {
     const {router} = renderTestComponent({
       dashboard,
       params: {orgId: 'org-slug', widgetIndex: '0'},
-      query: {statsPeriod: '90d'},
+      query: {statsPeriod: '730d'},
     });
 
     await userEvent.click(screen.getByText('Update Widget'));
@@ -1054,7 +1054,7 @@ describe('WidgetBuilder', function () {
         expect.objectContaining({
           pathname: '/organizations/org-slug/dashboard/1/',
           query: expect.objectContaining({
-            statsPeriod: '90d',
+            statsPeriod: '730d',
           }),
         })
       );
@@ -1069,7 +1069,7 @@ describe('WidgetBuilder', function () {
 
     renderTestComponent({
       params: {orgId: 'org-slug'},
-      query: {statsPeriod: '90d'},
+      query: {statsPeriod: '730d'},
       orgFeatures: defaultOrgFeatures,
     });
 
@@ -1103,7 +1103,7 @@ describe('WidgetBuilder', function () {
         filters: {release: ['abc@1.2.0']},
       },
       params: {orgId: 'org-slug'},
-      query: {statsPeriod: '90d'},
+      query: {statsPeriod: '730d'},
       orgFeatures: defaultOrgFeatures,
     });
 

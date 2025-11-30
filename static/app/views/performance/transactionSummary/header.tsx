@@ -113,7 +113,7 @@ function TransactionHeader({
   );
 
   const {getReplayCountForTransaction} = useReplayCountForTransactions({
-    statsPeriod: '90d',
+    statsPeriod: '730d',
   });
   const replaysCount = getReplayCountForTransaction(transactionName);
 

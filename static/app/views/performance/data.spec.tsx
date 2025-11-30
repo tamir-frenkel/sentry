@@ -44,14 +44,14 @@ describe('generatePerformanceEventView()', function () {
 
   it('does not override statsPeriod from location', function () {
     const result = generatePerformanceEventView(
-      LocationFixture({query: {statsPeriod: ['90d', '45d']}}),
+      LocationFixture({query: {statsPeriod: ['730d', '45d']}}),
       [],
       {},
       organization
     );
     expect(result.start).toBeUndefined();
     expect(result.end).toBeUndefined();
-    expect(result.statsPeriod).toEqual('90d');
+    expect(result.statsPeriod).toEqual('730d');
   });
 
   it('does not apply range when start and end are present', function () {

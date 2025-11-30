@@ -40,7 +40,7 @@ export default function useReplaysFromIssue({
             returnIds: true,
             query: `issue.id:[${group.id}]`,
             data_source: dataSource,
-            statsPeriod: '90d',
+            statsPeriod: '730d',
             environment: location.query.environment,
             project: ALL_ACCESS_PROJECTS,
           },
@@ -63,7 +63,7 @@ export default function useReplaysFromIssue({
       version: 2,
       fields: REPLAY_LIST_FIELDS,
       query: replayIds.length ? `id:[${String(replayIds)}]` : `id:1`,
-      range: '90d',
+      range: '730d',
       projects: [],
       orderby: decodeScalar(location.query.sort, DEFAULT_SORT),
     });

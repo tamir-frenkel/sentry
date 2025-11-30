@@ -13,7 +13,7 @@ export default function useReplayExists() {
     dataSource: 'discover',
     fieldName: 'replay_id',
     organization,
-    statsPeriod: '90d',
+    statsPeriod: '730d',
   });
 
   return useMemo(

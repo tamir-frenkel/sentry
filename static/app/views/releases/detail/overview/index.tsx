@@ -509,7 +509,7 @@ class ReleaseOverview extends DeprecatedAsyncView<Props> {
                               defaultPeriod={
                                 releaseBounds.type !== 'ancient'
                                   ? RELEASE_PERIOD_KEY
-                                  : '90d'
+                                  : '730d'
                               }
                               defaultAbsolute={{
                                 start: moment(releaseBounds.releaseStart)

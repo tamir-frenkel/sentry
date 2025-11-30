@@ -63,7 +63,7 @@ export function GroupHeaderTabs({
   const location = useLocation();
 
   const {getReplayCountForIssue} = useReplayCountForIssues({
-    statsPeriod: '90d',
+    statsPeriod: '730d',
   });
   const replaysCount = getReplayCountForIssue(group.id, group.issueCategory);
 

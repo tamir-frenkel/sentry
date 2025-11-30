@@ -194,7 +194,7 @@ function useReplayCountForFeedbacks() {
     dataSource: 'search_issues',
     fieldName: 'issue.id',
     organization: {slug: organizationSlug} as any,
-    statsPeriod: '90d',
+    statsPeriod: '730d',
   });
 
   return useMemo(

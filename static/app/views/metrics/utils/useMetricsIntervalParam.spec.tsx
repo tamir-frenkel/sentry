@@ -11,7 +11,7 @@ describe('getIntervalOptionsForStatsPeriod', () => {
     ]);
 
     expect(
-      getIntervalOptionsForStatsPeriod({period: '90d', start: null, end: null, utc: null})
+      getIntervalOptionsForStatsPeriod({period: '730d', start: null, end: null, utc: null})
     ).toEqual([
       {value: '1d', label: '1 day'},
       {value: '1w', label: '1 week'},

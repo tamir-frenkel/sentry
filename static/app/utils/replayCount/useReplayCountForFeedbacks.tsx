@@ -13,7 +13,7 @@ export default function useReplayCountForFeedbacks() {
     dataSource: 'search_issues',
     fieldName: 'issue.id',
     organization,
-    statsPeriod: '90d',
+    statsPeriod: '730d',
   });
 
   return useMemo(

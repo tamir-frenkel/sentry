@@ -177,7 +177,7 @@ function GroupTagValues({baseUrl, project, group, environments}: Props) {
         projects: [Number(project?.id)],
         environment: environments,
         version: 2 as SavedQueryVersions,
-        range: '90d',
+        range: '730d',
       });
       const issuesPath = `/organizations/${orgId}/issues/`;
 

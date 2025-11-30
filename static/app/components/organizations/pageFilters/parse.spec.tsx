@@ -37,7 +37,7 @@ describe('normalizeDateTimeParams', function () {
         start: '2019-10-01T00:00:00',
         end: '2019-10-02T00:00:00',
         statsPeriod: '55d',
-        period: '90d',
+        period: '730d',
       })
     ).toEqual({statsPeriod: '55d'});
 
@@ -162,7 +162,7 @@ describe('normalizeDateTimeParams', function () {
         pageStart: '2021-10-23T04:28:49+0000',
         pageEnd: '2021-10-26T02:56:17+0000',
         pageUtc: 'true',
-        pageStatsPeriod: '90d',
+        pageStatsPeriod: '730d',
         start: '2019-10-23T04:28:49+0000',
         end: '2019-10-26T02:56:17+0000',
         utc: 'false',
@@ -170,7 +170,7 @@ describe('normalizeDateTimeParams', function () {
       })
     ).toEqual({
       utc: 'true',
-      statsPeriod: '90d',
+      statsPeriod: '730d',
     });
   });
 

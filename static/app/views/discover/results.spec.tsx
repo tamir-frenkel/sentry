@@ -582,7 +582,7 @@ describe('Results', function () {
           location: {
             query: {
               ...generateFields(),
-              statsPeriod: '90d',
+              statsPeriod: '730d',
               project: [1, 2, 3, 4].map(String),
             },
           },

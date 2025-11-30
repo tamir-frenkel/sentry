@@ -793,7 +793,7 @@ describe('PageFiltersContainer', function () {
           {id: '2', slug: 'prod-project', environments: ['prod']},
         ],
         router: {
-          location: {pathname: '/test', query: {statsPeriod: '90d'}},
+          location: {pathname: '/test', query: {statsPeriod: '730d'}},
           params: {orgId: 'org-slug'},
         },
       });
@@ -817,7 +817,7 @@ describe('PageFiltersContainer', function () {
 
         expect(initialData.router.replace).toHaveBeenLastCalledWith({
           pathname: '/test',
-          query: {environment: [], project: ['1'], statsPeriod: '90d'},
+          query: {environment: [], project: ['1'], statsPeriod: '730d''},
         });
       });
     });
